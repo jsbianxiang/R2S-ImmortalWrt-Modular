@@ -298,3 +298,16 @@ README 里残留的"默认 nikki"表述（改 clashoo）。
 **验证**：
 - 离线 PASS 17 / 在线 PASS 34，均 FAIL 0；模块三处同步（代码/workflow/README）零差集
 - 全模块包解析模拟：23 包 → 闭包 206，上述 4 项全部不在闭包内，代理栈仅 clashoo
+
+## 追加：qos 模块保留（2026-11-24）
+
+用户确认 `luci-app-sqm` + `kmod-sched-cake` 要保留（用于 WAN 下多设备的
+缓冲膨胀控制），故恢复 `qos` 模块。上次的精简实际只删了这一个独立模块；
+`natmap` / `arpbind` / `3cat`（连同 3proxy）都是各自模块**内部**的包，
+它们的移除保持不变。模块数回到 8。
+
+同步：workflow 白名单与输入框描述、custom-packages.sh 的 case 分支与警告信息、
+README/PACKAGES 模块表与计数、模块数表述（明确 3 项移除是模块内部的包）。
+
+**验证**：离线 PASS 17 / 在线 PASS 34，FAIL 0；模块三处同步零差集。
+构建包清单含 sqm+cake，不含 natmap/3cat/arpbind。

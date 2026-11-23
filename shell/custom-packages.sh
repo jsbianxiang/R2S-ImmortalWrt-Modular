@@ -168,8 +168,9 @@ unset _app
 #      partexp / vantage 两源均无独立 i18n，保持原样。
 #   d) 未知模块名只 WARN 不 FAIL —— 容错，避免拼错一个名字就整包构建失败。
 #
-# 可用模块（7 个；2026-11-24 按用户实际需要精简）：
+# 可用模块（8 个；2026-11-24 精简掉 3 个模块内部的包，qos 模块保留）：
 #   network    网络：WireGuard 协议 + ZeroTier + UPnP（已去掉 natmap）
+#   qos         QoS：SQM + CAKE 队列纪律（用户要求保留）
 #   ddns        动态域名：DDNS + Cloudflare 脚本
 #   monitor     监控：Bandix 实时流量（已去掉 ARP 绑定与 3cat/3proxy）
 #   storage     存储：文件管理 + 分区扩容 + f2fs + zram-swap
@@ -185,6 +186,10 @@ _add_module() {
             #   且 natmapt 前端依赖的核心包全源缺失（曾致构建失败）。
             # zerotier 用官方 26.x（dllkids 的 1.0 更低），故可安全配官方中文包
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-i18n-zerotier-zh-cn luci-app-upnp"
+            ;;
+        qos)
+            # 2026-11-24 用户确认保留：SQM 智能队列 + CAKE（缓冲膨胀控制）
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sqm kmod-sched-cake"
             ;;
         ddns)
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-ddns ddns-scripts ddns-scripts-cloudflare"
@@ -208,7 +213,7 @@ _add_module() {
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-vantage luci-app-vantage"
             ;;
         *)
-            printf '[WARN] 未知模块名：%s（已忽略；可用：network ddns monitor storage tuning usbnet theme-vantage）\n' "$1" >&2
+            printf '[WARN] 未知模块名：%s（已忽略；可用：network qos ddns monitor storage tuning usbnet theme-vantage）\n' "$1" >&2
             ;;
     esac
 }
