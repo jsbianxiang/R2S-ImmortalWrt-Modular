@@ -25,6 +25,8 @@ shell/audit.py —— 仓库一致性自检（把「人工审计」里反复过�
    4. 短名清单格式合法、条数可统计、`I18N_BUILTIN` 豁免项确实在清单里
    4b. 模块清单三处同步：`custom-packages.sh` 的 `_add_module()` ⇄ workflow
        `ALLOWED` 白名单 ⇄ README「可用模块」表（本项目新增的模块化开关）
+   4c. 模块内 i18n 冲突：模块不得同时含 `luci-app-X` 与 `luci-i18n-X-zh-cn`
+       （dllkids 版 app 自带中文，再装官方 i18n 会文件冲突使构建失败）
    5. 工作流输入安全：`${{ inputs.* }}` 只允许出现在 `env:` 赋值处，不得直插 shell
    6. 工作流 `IN_*` 变量：shell 里用到的必须在 job `env:` 里定义
    7. 构建期写入工作区的路径，必须「已被 git 跟踪」或「已被 .gitignore 忽略」
@@ -555,6 +557,29 @@ def offline_checks(version: str) -> None:
         )
         total_pkgs = sum(len(v) for v in impl_mods.values())
         ok("模块包清单可解析", f"{len(impl_mods)} 个模块 / {total_pkgs} 条包引用")
+
+        # --- 4c. 模块内 i18n 与自带中文 app 的文件冲突 --------------------
+        # 背景（2026-11-24 构建失败）：模块里同时写 luci-app-3cat（dllkids
+        # 27.x，包内自带 zh-cn.lmo）与 luci-i18n-3cat-zh-cn（官方 26.x），
+        # apk 装独立 i18n 时报 "trying to overwrite ... owned by luci-app-3cat"。
+        # 规则：模块里的 luci-app-X 若来自 dllkids（自带中文），不得再配
+        # luci-i18n-X-zh-cn。保守起见，模块内任何 app+独立i18n 同现即 FAIL ——
+        # 官方源 app 需要中文时应走「二、2.1」的 ENABLE_APPS 短名机制，
+        # 那里有 I18N_BUILTIN 豁免，而不是在 2.3 手写 i18n 包。
+        i18n_conflicts: list[str] = []
+        for mod, pkgs in impl_mods.items():
+            apps = {p[len("luci-app-"):] for p in pkgs if p.startswith("luci-app-")}
+            for p in pkgs:
+                m = re.fullmatch(r"luci-i18n-(.+)-zh-cn", p)
+                if m and m.group(1) in apps:
+                    i18n_conflicts.append(f"{mod}: {p} 与 luci-app-{m.group(1)} 同现")
+        check(
+            not i18n_conflicts,
+            "模块内 i18n 与 app 文件冲突",
+            "全部模块均无 app+独立i18n 同现",
+            "; ".join(i18n_conflicts) + " —— dllkids 版 app 自带中文，"
+            "再装官方 i18n 会 trying to overwrite 而构建失败",
+        )
 
     # --- 5/6. 工作流输入安全与变量联动 ------------------------------------
     bad_inject = []

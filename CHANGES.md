@@ -241,3 +241,24 @@ README/PACKAGES 同步标注。
 - 结论：**全模块组合无下一个坏包，构建预检通过**
 
 注意：这是离线预检，不等价于真实构建；最终以 GitHub Actions 运行结果为准。
+
+## 追加：第三次构建失败修复 —— i18n 文件冲突（2026-11-24）
+
+日志：`luci-i18n-3cat-zh-cn (26.298 官方): trying to overwrite
+usr/lib/lua/luci/i18n/3cat.zh-cn.lmo owned by luci-app-3cat (27.150 dllkids)`
+
+根因：上一轮"补全中文包"时只看了"官方源有独立 i18n 包"，却忽略了这些 app
+在 **dllkids 源的版本自带简体中文**（实测 6 个 app 的包内均含 zh-cn.lmo 与
+uci-defaults）。apk 取版本高者装了 dllkids 的 27.x app，再装官方 26.x 的独立
+i18n 就撞文件——正是文件头「注意事项 6」I18N_BUILTIN 要防的同类问题，
+只是发生在 2.3 模块里而没被覆盖到。
+
+修复：
+- 移除模块内全部 6 个独立 i18n（zerotier / natmap / upnp / ddns / arpbind / 3cat），
+  app 用 dllkids 版即可，中文已内置。filemanager 不在 dllkids 源，其中文包
+  仍由 build.sh 默认提供，不受影响。
+- 更新 2.3 注释 c) 与 README/PACKAGES 的模块表。
+- audit.py 新增检查 4c（离线）：模块内 `luci-app-X` 与 `luci-i18n-X-zh-cn`
+  同现即 FAIL。变异测试确认加回 i18n 会被精确捕获。
+
+**验证**：`audit.py --online` PASS 34 / WARN 0 / FAIL 0；离线 PASS 17 / FAIL 0。

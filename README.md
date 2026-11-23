@@ -78,10 +78,10 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 
 | 模块名 | 功能 | 包含的包 |
 | --- | --- | --- |
-| `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier` + 中文、`luci-app-natmap` + 中文（官方版，核心 natmap 自动装入）、`luci-app-upnp` + 中文。⚠ 不含 natmapt：其 dllkids 前端依赖的核心包全源缺失，会构建失败 |
+| `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier`、`luci-app-natmap`（核心 natmap 自动装入）、`luci-app-upnp`。这些 app 用 dllkids 版**自带中文**，不另装 i18n。⚠ 不含 natmapt：其核心包全源缺失 |
 | `qos` | 智能队列管理 | `luci-app-sqm`、`kmod-sched-cake` |
-| `ddns` | 动态域名 | `luci-app-ddns` + 中文、`ddns-scripts`、`ddns-scripts-cloudflare` |
-| `monitor` | 流量监控与绑定 | `luci-app-bandix`、`luci-app-arpbind` + 中文、`luci-app-3cat` + 中文 |
+| `ddns` | 动态域名 | `luci-app-ddns`（dllkids 版自带中文）、`ddns-scripts`、`ddns-scripts-cloudflare` |
+| `monitor` | 流量监控与绑定 | `luci-app-bandix`、`luci-app-arpbind`、`luci-app-3cat`（后两者 dllkids 版自带中文） |
 | `storage` | 存储与文件管理 | `luci-app-filemanager` + 中文、`luci-app-partexp`、`kmod-fs-f2fs`、`zram-swap` |
 | `tuning` | 网络调优 | `kmod-tcp-bbr`、`ethtool` |
 | `usbnet` | 手机 USB 共享网络 | `kmod-usb-net-rndis`、`kmod-usb-net-cdc-ether`、`kmod-usb-net-ipheth`、`usbmuxd` |
