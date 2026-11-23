@@ -195,3 +195,35 @@ build.sh 默认已装故不重复，natmapt / partexp / vantage 两源均无独�
 - shell 语法 ×3、YAML ×3 全过
 - 审计离线 PASS 16 / FAIL 0；在线 PASS 32 / WARN 0 / FAIL 0
 - 升级保护、注入拦截、公钥失败检测均做了模拟测试
+
+## 追加：首次 Actions 构建失败修复（2026-11-24）
+
+### 失败 1：source 路径（已在上一个 commit 修复）
+
+复审时把 `source shell/custom-packages.sh` 改为 `../shell/...`，但容器内
+build.sh 与 shell/ 是父子关系（build.sh 挂到 /home/build/immortalwrt/，
+shell/ 挂到其下），`../shell` 指向不存在的 /home/build/shell。
+改为自动探测三种布局，兼容容器与本地。
+
+### 失败 2：natmapt 坏包（本次修复）
+
+日志：`ERROR: unable to select packages: natmapt (no such package):
+required by: luci-app-natmapt-...`
+
+根因：`luci-app-natmapt` 只在 dllkids 源存在，但它依赖的核心包 `natmapt`
+在**所有源都不存在**（官方 5 feed + target + kmods + dllkids 全查过）。
+这是 dllkids 源的坏包——前端留着、后端没编译。
+
+修复：从 `network` 模块移除 `luci-app-natmapt`，保留官方的
+`luci-app-natmap + natmap`（后者在官方源完整存在，apk 自动解析装入）。
+README/PACKAGES 同步标注。
+
+### 审计增强：检查 14e 模块包一层依赖可解析
+
+14c/14d 只验"包本身存在"，抓不到"前端存在、依赖缺失"的坏包。
+新增 14e：对模块显式包逐个取 apkmeta，检查 `D:` 依赖中哪些名字
+①不在源目录、②无"<名字>-*"实体包提供（虚拟名近似）、③非基础虚拟名。
+变异测试确认：加回 natmapt 时精确判 FAIL（"network: luci-app-natmapt
+依赖 natmapt"），移除后 30 个模块包全部 PASS。
+
+**验证**：`audit.py --online` PASS 33 / WARN 0 / FAIL 0。

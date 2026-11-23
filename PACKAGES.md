@@ -122,7 +122,7 @@
 
 | 模块 | 包 | 来源 |
 | --- | --- | --- |
-| `network` | `luci-proto-wireguard` / `luci-app-zerotier`+zh / `luci-app-natmap`+zh / `luci-app-natmapt` / `luci-app-upnp`+zh | 官方 / dllkids |
+| `network` | `luci-proto-wireguard` / `luci-app-zerotier`+zh / `luci-app-natmap`+zh / `luci-app-upnp`+zh（natmapt 已剔除：核心包全源缺失） | 官方 / dllkids |
 | `qos` | `luci-app-sqm` / `kmod-sched-cake` | 官方（含 kmods） |
 | `ddns` | `luci-app-ddns`+zh / `ddns-scripts` / `ddns-scripts-cloudflare` | 官方 |
 | `monitor` | `luci-app-bandix` / `luci-app-arpbind`+zh / `luci-app-3cat`+zh | dllkids / 官方 |

@@ -173,7 +173,11 @@ ENABLE_MODULES="${ENABLE_MODULES:-}"
 _add_module() {
     case "$1" in
         network)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-i18n-zerotier-zh-cn luci-app-natmap luci-i18n-natmap-zh-cn luci-app-natmapt luci-app-upnp luci-i18n-upnp-zh-cn"
+            # ⚠ 不收录 luci-app-natmapt：dllkids 源有这个前端，但它依赖的核心包
+            #   `natmapt` 在所有源都不存在（2026-11-24 实测），勾选即 make image
+            #   报 "natmapt (no such package)" 失败。官方的 luci-app-natmap +
+            #   natmap 组合完整可用（natmap 核心包由 apk 自动解析），故用官方版。
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-i18n-zerotier-zh-cn luci-app-natmap luci-i18n-natmap-zh-cn luci-app-upnp luci-i18n-upnp-zh-cn"
             ;;
         qos)
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sqm kmod-sched-cake"

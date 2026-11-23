@@ -1024,6 +1024,67 @@ def online_checks(version: str, decl: dict) -> None:
                 "; ".join(f"{v}: {p}" for v, p in ver_missing.items()),
             )
 
+    # --- 14e. 模块包的一层依赖可解析性 ----------------------------------
+    # 背景（2026-11-24 构建失败）：luci-app-natmapt 在 dllkids 源存在，但它
+    # 依赖的核心包 natmapt 在所有源都不存在 ⇒ make image 报
+    # "natmapt (no such package)" 失败。14c 只验"包本身存在"，抓不到这种
+    # "前端存在、依赖缺失"的坏包。这里对模块包做一层依赖校验：
+    # 依赖名若不在源目录、也不由该包自身 provides（apk 自提供虚拟名模式，
+    # 如 luci-app-upnp 依赖并自提供 miniupnpd），则判 FAIL。
+    am = None
+    if impl_mods:
+        try:
+            am = _load_apkmeta()
+        except Exception as e:  # noqa: BLE001
+            warn("模块依赖校验", f"导入 apkmeta 失败：{e}")
+    if impl_mods and am is not None:
+        try:
+            cat_e = apk_catalog(version)
+        except Exception as e:  # noqa: BLE001
+            warn("模块依赖校验：源目录", f"抓取失败：{e}")
+            cat_e = {}
+        if cat_e:
+            mod_bad: list[str] = []
+            checked = 0
+            for mod, pkgs in impl_mods.items():
+                for p in pkgs:
+                    url = cat_e.get(p)
+                    if not url:
+                        continue  # 14c 已验存在性
+                    try:
+                        m = am.fetch_meta(url, CLOSURE_PREFIX_B, retries=2)
+                    except Exception:  # noqa: BLE001
+                        continue  # 网络抖动不判 FAIL
+                    checked += 1
+                    for dep in m.get("D", []):
+                        # 1) 同名实体包在源里 ⇒ 正常
+                        if dep in cat_e:
+                            continue
+                        # 2) 虚拟名由某个实体包提供：apk 的虚拟名通常由
+                        #    "<名字>-<实现>" 形式的包 provides（miniupnpd →
+                        #    miniupnpd-nftables / miniupnpd-iptables；ip → ip-full）。
+                        #    用前缀匹配近似；注意 m["names"] 把依赖也混进去了，
+                        #    不能拿它判断自提供（apkmeta 文档承认的局限）。
+                        if any(n.startswith(dep + "-") or n.startswith(dep + "_")
+                               for n in cat_e):
+                            continue
+                        # 3) 基础库虚拟名 / 架构自提供（apk 内建或由 libc 等提供）
+                        if dep in {"libc", "libgcc", "libstdc++", "libgcc-any",
+                                   "libstdcpp-any", ARCH} or dep.endswith("-any"):
+                            continue
+                        mod_bad.append(f"{mod}: {p} 依赖 {dep}")
+            if mod_bad:
+                fail(
+                    "模块包：一层依赖可解析",
+                    "; ".join(sorted(set(mod_bad)))
+                    + " —— 依赖包在所有源都不存在，勾选该模块会构建失败",
+                )
+            elif checked:
+                ok(
+                    "模块包：一层依赖可解析",
+                    f"{checked} 个模块包的一层依赖全部可在源解析或由包自身提供",
+                )
+
     # --- 15. 依赖闭包 & 第二个代理前端 -----------------------------------
     check_dependency_closure(version, stacks, explicit_hint=None)
 
