@@ -227,3 +227,17 @@ README/PACKAGES 同步标注。
 依赖 natmapt"），移除后 30 个模块包全部 PASS。
 
 **验证**：`audit.py --online` PASS 33 / WARN 0 / FAIL 0。
+
+## 追加：全模块构建预检（2026-11-24）
+
+本地无 Docker，无法跑真实 ImageBuilder，但用 audit 的依赖闭包机制模拟了
+`make image` 的完整包解析（默认 12 包 + 全模块 33 包 = 45 个显式包）：
+
+- 闭包 272 个包，未被 500 包上限截断
+- 代理栈只命中 clashoo 一套，无第二栈混入
+- 4 个"疑似缺失"逐个甄别：`uci-firewall` 由 firewall4 提供、
+  `libncursesw6` 由 libncurses6 提供（均实测确认 provides）；
+  `2022.03.22` / `2023.01.21` 是版本号被误当包名的解析噪声
+- 结论：**全模块组合无下一个坏包，构建预检通过**
+
+注意：这是离线预检，不等价于真实构建；最终以 GitHub Actions 运行结果为准。
