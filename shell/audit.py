@@ -563,20 +563,22 @@ def offline_checks(version: str) -> None:
         # 27.x，包内自带 zh-cn.lmo）与 luci-i18n-3cat-zh-cn（官方 26.x），
         # apk 装独立 i18n 时报 "trying to overwrite ... owned by luci-app-3cat"。
         # 规则：模块里的 luci-app-X 若来自 dllkids（自带中文），不得再配
-        # luci-i18n-X-zh-cn。保守起见，模块内任何 app+独立i18n 同现即 FAIL ——
-        # 官方源 app 需要中文时应走「二、2.1」的 ENABLE_APPS 短名机制，
-        # 那里有 I18N_BUILTIN 豁免，而不是在 2.3 手写 i18n 包。
+        # luci-i18n-X-zh-cn。例外：I18N_APPROVED 里的短名——它们的 dllkids 版本
+        # **低于**官方，apk 装的是官方那份（不含中文），配独立 i18n 安全。
+        # 当前仅 zerotier（dll 1.0-r21 < 官方 26.x）；2026-11-24 构建日志实证
+        # 其余 5 个都报 trying to overwrite，唯独 zerotier 没有。
+        I18N_APPROVED = {"zerotier"}
         i18n_conflicts: list[str] = []
         for mod, pkgs in impl_mods.items():
             apps = {p[len("luci-app-"):] for p in pkgs if p.startswith("luci-app-")}
             for p in pkgs:
                 m = re.fullmatch(r"luci-i18n-(.+)-zh-cn", p)
-                if m and m.group(1) in apps:
+                if m and m.group(1) in apps and m.group(1) not in I18N_APPROVED:
                     i18n_conflicts.append(f"{mod}: {p} 与 luci-app-{m.group(1)} 同现")
         check(
             not i18n_conflicts,
             "模块内 i18n 与 app 文件冲突",
-            "全部模块均无 app+独立i18n 同现",
+            "仅白名单 zerotier 合法同现（官方版 app 不含中文），其余均无冲突",
             "; ".join(i18n_conflicts) + " —— dllkids 版 app 自带中文，"
             "再装官方 i18n 会 trying to overwrite 而构建失败",
         )

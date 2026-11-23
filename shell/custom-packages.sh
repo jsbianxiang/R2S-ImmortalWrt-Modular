@@ -153,13 +153,17 @@ unset _app
 #      缺失的包（kmod-tcp-bbr3 / luci-app-flowcone / kmod-sched-fq-codel）不收录。
 #   b) 不收录任何**透明代理接管型**插件（homeproxy / dae / honk / nikki 等）——
 #      它们必须走「一、第三方插件」的代理互斥机制，避免与默认 clashoo 双开。
-#   c) **不写独立 i18n 包**（2026-11-24 实测修正）：zerotier / natmap / upnp /
-#      ddns / arpbind / 3cat 这 6 个 app 在 **dllkids 源的版本自带简体中文**
+#   c) **不写独立 i18n 包**（2026-11-24 实测修正）：natmap / upnp / ddns /
+#      arpbind / 3cat 这 5 个 app 在 **dllkids 源的版本自带简体中文**
 #      （包内含 usr/lib/lua/luci/i18n/<名>.zh-cn.lmo 与 uci-defaults）。apk 取版本
 #      高者（dllkids 27.x > 官方 26.x）⇒ 实际装的是自带中文那份；若再配官方的
 #      luci-i18n-<名>-zh-cn（26.x），apk 会报
 #        "trying to overwrite ... owned by luci-app-<名>" 使 make image 失败。
 #      这与文件头「注意事项 6」的 I18N_BUILTIN 是同一类问题，只是发生在模块里。
+#      ⚠ 例外 zerotier：dllkids 版本（1.0-r21）**低于**官方（26.x），apk 装的是
+#      官方那份（不含中文），配 luci-i18n-zerotier-zh-cn 不会冲突；2026-11-24
+#      的构建日志实证——其余 5 个都报了 trying to overwrite，唯独 zerotier 没有。
+#      audit.py 检查 4c 对 zerotier 放行。
 #      filemanager 不在 dllkids 源（用官方版），其中文包由 build.sh 默认已装；
 #      natmapt / partexp / vantage 两源均无独立 i18n，保持原样。
 #   d) 未知模块名只 WARN 不 FAIL —— 容错，避免拼错一个名字就整包构建失败。
@@ -182,7 +186,8 @@ _add_module() {
             #   `natmapt` 在所有源都不存在（2026-11-24 实测），勾选即 make image
             #   报 "natmapt (no such package)" 失败。官方的 luci-app-natmap +
             #   natmap 组合完整可用（natmap 核心包由 apk 自动解析），故用官方版。
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-app-natmap luci-app-upnp"
+            # zerotier 用官方 26.x（dllkids 的 1.0 更低），故可安全配官方中文包
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-i18n-zerotier-zh-cn luci-app-natmap luci-app-upnp"
             ;;
         qos)
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sqm kmod-sched-cake"

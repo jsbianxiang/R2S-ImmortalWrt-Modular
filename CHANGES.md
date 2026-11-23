@@ -262,3 +262,20 @@ i18n 就撞文件——正是文件头「注意事项 6」I18N_BUILTIN 要防的
   同现即 FAIL。变异测试确认加回 i18n 会被精确捕获。
 
 **验证**：`audit.py --online` PASS 34 / WARN 0 / FAIL 0；离线 PASS 17 / FAIL 0。
+
+## 追加：zerotier 中文包回补（2026-11-24）
+
+上一轮移除 6 个 i18n 是保守处理，其中 zerotier 属误伤：
+- dllkids 的 `luci-app-zerotier` 版本 1.0-r21，**低于**官方 26.x
+- apk 取版本高者 ⇒ 实际装官方版（不含中文），配独立 i18n 不冲突
+- 实证：第三次构建日志里其余 5 个 app 都报了 trying to overwrite，
+  唯独 zerotier 没有
+
+改动：network 模块加回 `luci-i18n-zerotier-zh-cn`；audit.py 检查 4c 增加
+`I18N_APPROVED = {"zerotier"}` 白名单例外；注释记录例外理由与前提。
+
+⚠ 残余风险：白名单依赖人工维护，且若将来 dllkids 把 zerotier 版本升过官方，
+“官方版 app 不含中文” 的前提就不成立，需重新评估。白名单仅 1 项、理由写在
+代码注释里，便于审查。
+
+**验证**：离线 PASS 17 / 在线 PASS 34 / FAIL 0。
