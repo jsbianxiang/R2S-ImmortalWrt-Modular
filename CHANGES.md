@@ -1,7 +1,7 @@
 # 改造说明：融合 YAOF 插件生态
 
 本项目 fork 自 `jsbianxiang/NanoPi-R2S-ImmortalWrt-Builder`，在其严谨的构建与验证体系之上，
-移植了 `QiuSimons/YAOF` 的部分插件生态。**仍只支持 NanoPi R2S**，保持单代理栈（nikki）默认。
+移植了 `QiuSimons/YAOF` 的部分插件生态。**仍只支持 NanoPi R2S**，默认代理栈为 clashoo（原项目为 nikki）。
 
 ## 改了什么
 
@@ -31,7 +31,7 @@
 
 ## 刻意未移植
 
-- **代理类插件**（HomeProxy / dae / Honk / FlowCone）：透明代理接管型，与默认 nikki 互斥，
+- **代理类插件**（HomeProxy / dae / Honk / FlowCone）：透明代理接管型，与默认 clashoo 互斥，
   必须走原项目的代理换栈流程。FlowCone 依赖的 eBPF FullCone 模块在 ImmortalWrt 25.12 源中缺失。
 - **BBR3**（`kmod-tcp-bbr3`）：ImmortalWrt 25.12 rockchip kmods 中不存在，`tuning` 只提供 BBR。
 - **Docker / store / istore**：原项目明确不集成，维持不变。
@@ -58,3 +58,26 @@ python3 shell/audit.py --online   → PASS 30 / WARN 1 / FAIL 0
 可能导致另一套代理栈内核被装入），非本次改造引入，且不影响单栈互斥校验。
 
 模块化拼接已实测 4 种场景：默认空、指定 4 模块、全 8 模块、未知模块容错，均符合预期。
+
+## 追加变更：默认代理 nikki → clashoo
+
+用户要求把默认代理换成 clashoo。这不是简单换两行——clashoo 与 nikki 的内核机制不同：
+
+| 项 | nikki | clashoo |
+| --- | --- | --- |
+| 内核路径 | `/usr/libexec/mihomo-core`（由 `mihomo` apk 提供） | `/usr/libexec/clashoo/mihomo-stable`（clashoo 包自带，21 MB） |
+| 内核版本 | `build.sh` 跟随 GitHub 上游最新正式版并覆盖 | 随 dllkids 源重建更新，实测 `1.19.34` |
+| 中文包 | 无独立 i18n | `luci-app-clashoo` **硬依赖** `luci-i18n-clashoo-zh-cn` |
+| kmod | 需显式列出 | `clashoo` 的 `D:` 已含 kmod-tun / nft-tproxy 等，apk 自动解析 |
+
+因此改了 5 个文件：
+
+- `shell/custom-packages.sh`：默认行改为 clashoo 三件套；nikki 行注释掉并补充换栈说明
+- `rockchip/build.sh`：新增 `CLASHOO_SELF_KERNEL` 识别，内核覆盖逻辑显式跳过 clashoo
+  （原逻辑只认 nikki/ssr-plus，若不改会白下载 GitHub 资产并写入没人用的文件）
+- `README.md` / `PACKAGES.md`：同步全部「默认」声明、代理互斥表标注、内核来源章节
+- `CHANGES.md`：本记录
+
+**验证**：`audit.py --online` PASS 31 / WARN 0 / FAIL 0（换栈前的跨栈 WARN 也消失了，
+因为 clashoo 自带内核，不再有 nikki 的 `D: mihomo` 被冲突栈满足的问题）。
+依赖闭包 160 包，含且仅含 clashoo 一套代理前端。

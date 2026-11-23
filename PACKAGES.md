@@ -26,12 +26,19 @@
 
 | 软件包 | 简介 | 来源 |
 | --- | --- | --- |
-| `luci-app-nikki` | nikki 的 LuCI 前端（eBPF / TUN 透明代理） | [kenzok8](https://github.com/kenzok8) |
-| `nikki` | nikki 服务本体（init / nftables / ucode） | [nikki 官方](https://github.com/nikkinikki-org/OpenWrt-nikki) |
-| `mihomo` | nikki 的内核（依赖解析自动带入，**正式版**，见下方说明） | [kenzok8](https://github.com/kenzok8) |
-| `kmod-tun` / `kmod-inet-diag` / `kmod-nft-tproxy` / `kmod-nft-socket` | nikki 依赖的内核模块 | ImmortalWrt 官方 kmods 源 |
+| `clashoo` | clashoo 服务本体，**自带 mihomo 内核**（21 MB，路径 `/usr/libexec/clashoo/mihomo-stable`） | [kenzok8](https://github.com/kenzok8) |
+| `luci-app-clashoo` | clashoo 的 LuCI 前端（TUN / fake-ip 透明代理） | [kenzok8](https://github.com/kenzok8) |
+| `luci-i18n-clashoo-zh-cn` | 简体中文包（`luci-app-clashoo` 的**硬依赖**，必须一起装） | [kenzok8](https://github.com/kenzok8) |
+| `kmod-tun` / `kmod-inet-diag` / `kmod-nft-tproxy` / `kmod-nft-socket` / `kmod-dummy` | clashoo 依赖的内核模块（由 `clashoo` 的 `D:` 自动解析，无需显式列出） | ImmortalWrt 官方 kmods 源 |
 
-> ℹ️ **nikki 的内核来自 `mihomo` 包，默认跟随上游最新正式版、不是 Alpha**
+> ℹ️ **clashoo 的内核随包自带，不做上游覆盖**（2026-11-24 核实）：clashoo 包内含
+> `/usr/libexec/clashoo/mihomo-stable`，并提供 `mihomo` / `clash-meta` 虚拟名满足
+> 依赖。`rockchip/build.sh` 已显式识别 clashoo 并跳过「跟随上游最新正式版」的
+> 下载/覆盖逻辑（该逻辑写的是 nikki 的 `/usr/libexec/mihomo-core`，路径不同，
+> 对 clashoo 无效）。源内实测版本 `clashoo-2026.11.12.1.19.34-r4`，随 dllkids
+> 源重建更新，不跟 GitHub 上游最新 tag。
+
+> ℹ️ **换回 nikki 时**其内核来自 `mihomo` 包，默认跟随上游最新正式版、不是 Alpha
 > （2026-10-23 上游核实）：nikki 自身没有内核频道开关（`nikki.init` 直接执行
 > `/usr/bin/mihomo`，配置与 LuCI 均无版本设置），内核完全由 `mihomo` 包提供
 > （实体 `/usr/libexec/mihomo-core`，`/usr/bin/mihomo` 为 alternatives 链接）。
@@ -50,7 +57,7 @@
 - APK 源：`https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_generic/packages.adb`
 - 签名公钥：`https://down.dllkids.xyz/openwrt-feed/keys/dllkids-feed.pub.pem`
 
-> 该源是完整的第三方源，除默认启用的 nikki 外还提供 `clashoo`、`mihomo`、
+> 该源是完整的第三方源，除默认启用的 clashoo 外还提供 `nikki`、`mihomo`、
 > `luci-app-ssr-plus`、`luci-app-passwall` / `passwall2`、`luci-app-openclash`、
 > `sing-box`、`geoview` 等。**这些代理插件互斥，只能启用一个**（见 README
 > 「代理插件互斥」）。`rockchip/build.sh` 在检测到 `luci-app-ssr-plus` 时会
@@ -89,7 +96,7 @@
    （如 `ENABLE_APPS="filemanager rclone ttyd"`），脚本会自动展开为
    `luci-app-<短名>` + `luci-i18n-<短名>-zh-cn`；文件末尾列出全部可用短名。
    少数非 `luci-app-*` 形式的包（`luci-proto-*` / `luci-mod-*` / openclash /
-   passwall 等）取消对应行注释即可。第三方插件默认仅 nikki（换栈见 README「代理插件互斥」）。
+   passwall 等）取消对应行注释即可。第三方插件默认仅 clashoo（换栈见 README「代理插件互斥」）。
    > ⚠️ **例外：已内置中文的 app 包。** `argon-config` / `cpufreq` / `diskman`
    > 这三个短名的 app 包由 **dllkids 第三方源**提供 `27.150.x` 版本，**自带简体中文**
    > （内含 `usr/lib/lua/luci/i18n/*.zh-cn.lmo` 与 `etc/uci-defaults/luci-i18n-*`）；

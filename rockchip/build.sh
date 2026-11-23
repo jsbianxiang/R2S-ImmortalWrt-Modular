@@ -394,6 +394,18 @@ else
     echo "⚪️ 未选择 luci-app-ssr-plus"
 fi
 
+# ---------- clashoo：自带内核，不覆盖 ----------
+# clashoo 包自带 /usr/libexec/clashoo/mihomo-stable（21 MB），并提供 mihomo
+# 虚拟名满足自身依赖；它**不**使用 nikki 的 /usr/libexec/mihomo-core 路径。
+# 因此下方「跟随上游最新正式版」的覆盖逻辑对 clashoo 无效 —— 若误触发只会
+# 白下载一次 GitHub 资产并写入一个没人用的文件。这里显式识别并跳过。
+if echo " $PACKAGES " | grep -qE " (clashoo|luci-app-clashoo) "; then
+    echo "✅ 已选择 clashoo，内核使用包内自带的 /usr/libexec/clashoo/mihomo-stable（不覆盖）"
+    CLASHOO_SELF_KERNEL=1
+else
+    CLASHOO_SELF_KERNEL=0
+fi
+
 # ---------- nikki / SSR-Plus 内核：默认跟随上游最新正式版 ----------
 # 背景（2026-10-23 上游核实）：
 #   · nikki 自身没有内核频道开关 —— nikki.init 直接执行 /usr/bin/mihomo，
@@ -432,7 +444,9 @@ MIHOMO_CORE_DIR="$BUILDER_DIR/files/usr/libexec"
 MIHOMO_CORE_GZ="$MIHOMO_CORE_DIR/.mihomo-core.gz"
 MIHOMO_CORE_BIN="$MIHOMO_CORE_DIR/.mihomo-core"
 
-if echo " $PACKAGES " | grep -qE " (nikki|luci-app-nikki|luci-app-ssr-plus) "; then
+if [ "$CLASHOO_SELF_KERNEL" = "1" ]; then
+    echo "⚪️ clashoo 自带内核，跳过上游 mihomo 二进制下载/覆盖"
+elif echo " $PACKAGES " | grep -qE " (nikki|luci-app-nikki|luci-app-ssr-plus) "; then
     mkdir -p "$MIHOMO_CORE_DIR"
     MIHOMO_CORE_TAG=""
 

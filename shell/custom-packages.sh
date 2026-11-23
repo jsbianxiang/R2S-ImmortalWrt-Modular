@@ -6,7 +6,7 @@
 # 拼接，最终由 build.sh 传给 `make image PACKAGES="..."`。
 #
 # 用法：
-#   1. 第三方插件（默认 nikki）已默认启用，见「一」，一般无需改动。
+#   1. 第三方插件（默认 clashoo）已默认启用，见「一」，一般无需改动。
 #   2. 官方源软件：把短名填进「二」2.1 的 ENABLE_APPS（空格分隔）即可，脚本会
 #      自动展开为 luci-app-<短名> + luci-i18n-<短名>-zh-cn（后者依赖前者，
 #      两者会一起装上）。可用短名见「三」。
@@ -16,7 +16,7 @@
 #
 # 注意事项：
 #   1. 【第三方插件】必须先注入其对应的第三方源，否则 make image 会因找不到包
-#      而失败。本分支已注入 kenzok8 / dllkids 的 APK 源（默认只启用 nikki）；
+#      而失败。本分支已注入 kenzok8 / dllkids 的 APK 源（默认只启用 clashoo）；
 #      自行加源方法见 README「如何自行增加第三方源」。
 #   2. 【代理类插件互斥 —— 已由构建期硬校验兜底】
 #      下面这些包**全部是「透明代理接管型」**，只能启用其中一个（共 27 套）：
@@ -72,9 +72,16 @@
 #   否则 make image 会因找不到包而失败。
 #   （2026-11-24 复核：源侧 622 → 640，luci-app-* 411 → 416；audit.py --online 捕获。）
 # =============================================================================
-# 【当前已启用】nikki（eBPF / TUN 体系）—— ⚠ 与 Clashoo / openclash 等互斥，
+# 【当前已启用】clashoo —— ⚠ 与 nikki / openclash 等互斥，
 # 换栈时必须先把下面这行注释掉，再取消目标栈那一行的注释（见文件头「注意事项 2」）。
-#CUSTOM_PACKAGES="$CUSTOM_PACKAGES clashoo luci-app-clashoo luci-i18n-clashoo-zh-cn"
+#
+# clashoo 三件套（2026-11-24 核实）：
+#   · luci-app-clashoo 硬依赖 luci-i18n-clashoo-zh-cn ⇒ 中文包必须一起写；
+#   · clashoo 包自带内核 /usr/libexec/clashoo/mihomo-stable（21 MB），并提供
+#     mihomo 虚拟名 ⇒ 不需要额外装 mihomo 包；
+#   · clashoo 的 D: 已含 kmod-tun / kmod-inet-diag / kmod-nft-tproxy /
+#     kmod-nft-socket / kmod-dummy 等，apk 会自动解析 ⇒ 不必显式列出。
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES clashoo luci-app-clashoo luci-i18n-clashoo-zh-cn"
 
 # -----------------------------------------------------------------------------
 # 1.2 其他第三方插件（可选；⚠ 代理类互斥，只能选一个）
@@ -87,7 +94,10 @@
 # PassWall2
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-passwall2 geoview xray-core sing-box hysteria kmod-nft-tproxy kmod-nft-socket"
 # nikki（核心包名就叫 nikki）—— ⚠ 透明代理接管型，与其他代理栈互斥，不可同时启用
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-nikki nikki kmod-tun kmod-inet-diag kmod-nft-tproxy kmod-nft-socket"
+# 注意：nikki 的内核由 rockchip/build.sh 的「跟随上游最新正式版」逻辑覆盖到
+# /usr/libexec/mihomo-core；clashoo 的内核在 /usr/libexec/clashoo/mihomo-stable，
+# 两者路径不同，故换栈时 build.sh 的判断条件也会随之切换（见该文件 mihomo 段）。
+#CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-nikki nikki kmod-tun kmod-inet-diag kmod-nft-tproxy kmod-nft-socket"
 #
 # OpenClash 不列在这里，它在「二」2.2（内核由 rockchip/build.sh 处理）。
 

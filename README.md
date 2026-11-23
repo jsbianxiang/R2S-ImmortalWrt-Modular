@@ -42,7 +42,7 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 | PPPoE 拨号 | WAN 默认 **DHCP** 接入（与 ImmortalWrt 官方默认一致），也可选静态 IP，`99-custom.sh` 中已无任何 PPPoE 逻辑 |
 | 多机型 / 多网口适配 | 不做。本分支专用于 R2S，网口映射（`eth0`=WAN / `eth1`=LAN）在 `99-custom.sh` 中**硬编码**，不再探测接口数量 |
 
-第三方软件只注入 **dllkids（kenzok8）** 一个源（默认只启用该源的 **nikki**），
+第三方软件只注入 **dllkids（kenzok8）** 一个源（默认只启用该源的 **clashoo**），
 由 `rockchip/build.sh` 在构建时注入，详见下文「预置软件与第三方源」。
 
 ---
@@ -212,7 +212,7 @@ GMAC，由内核直接支持。
   `flow_offloading`）、默认主题、`ttyd` / `dropbear` 监听范围 ——
   **全部保持 ImmortalWrt 官方默认**。
 
-> ⚠️ **若你启用了透明代理（默认 nikki）**：ImmortalWrt 的防火墙出厂配置
+> ⚠️ **若你启用了透明代理（默认 clashoo）**：ImmortalWrt 的防火墙出厂配置
 > （由 `001-firewall4-add-support-for-fullcone-nat.patch` 写入）是
 > `flow_offloading 1` / `flow_offloading_hw 1` / `fullcone 1` / `fullcone6 0`。
 > 其中 **flow offload 会让首包之后的流量绕过 netfilter 钩子，使 TPROXY 透明代理失效**，
@@ -230,7 +230,7 @@ GMAC，由内核直接支持。
 
 - 官方软件源中的**全部 kmod** 都可直接安装（kmods 源由 Image Builder 自动纳入，
   其依赖精确的内核版本，官方内核天然匹配）。
-- 代理插件（默认 nikki）依赖的 `kmod-tun`、`kmod-nft-tproxy`、`kmod-nft-socket`、`kmod-inet-diag`
+- 代理插件（默认 clashoo）依赖的 `kmod-tun`、`kmod-nft-tproxy`、`kmod-nft-socket`、`kmod-inet-diag`
   等内核模块均由官方 kmods 源解析。
 
 > **注意：首启后官方源地址会被改写为 ImmortalWrt 官方镜像。**
@@ -254,7 +254,7 @@ DLLKIDS_KEY_URL="https://down.dllkids.xyz/openwrt-feed/keys/dllkids-feed.pub.pem
 > - `aarch64_generic` 必须与目标的 `ARCH_PACKAGES` 一致，否则 apk 会以架构不符拒绝。
 > - 25.12 的配置启用了 `CONFIG_SIGNATURE_CHECK`，**必须**提供公钥，
 >   否则安装时会报 `UNTRUSTED signature`。
-> - 该源除默认启用的 nikki 外，还提供 clashoo / luci-app-ssr-plus / passwall2 /
+> - 该源除默认启用的 clashoo 外，还提供 nikki / luci-app-ssr-plus / passwall2 /
 >   openclash / mihomo 等。**这些代理插件互斥，只能启用一个** —— 详见下一节
 >   「代理插件互斥」。
 > - **该源与公钥也会随固件发布**，因此设备端可直接 `apk update` / `apk add` /
@@ -269,8 +269,8 @@ DLLKIDS_KEY_URL="https://down.dllkids.xyz/openwrt-feed/keys/dllkids-feed.pub.pem
 ### 代理插件互斥
 
 dllkids 源里所有**透明代理接管型**插件都只能启用**一个**。本分支默认启用
-**nikki**（eBPF / TUN 体系）；若想换成别的（例如 Clashoo、Daed、OpenClash），
-必须**先停旧的，再开新的**。
+**clashoo**（mihomo 内核、自带 TUN/fake-ip）；若想换成别的（例如 nikki、Daed、
+OpenClash），必须**先停旧的，再开新的**。
 
 **为什么不能双开**：这些插件每一套都会独自接管整个透明代理 ——
 各自写 nftables/iptables 的 `REDIRECT` / `TPROXY` 规则、各自劫持 DNS、
@@ -282,8 +282,8 @@ dllkids 源里所有**透明代理接管型**插件都只能启用**一个**。�
 
 | 代理栈 | 标志包 |
 | --- | --- |
-| nikki（默认） | `luci-app-nikki` / `nikki` |
-| Clashoo | `luci-app-clashoo` / `clashoo` |
+| nikki | `luci-app-nikki` / `nikki` |
+| Clashoo（默认） | `luci-app-clashoo` / `clashoo` |
 | OpenClash | `luci-app-openclash` |
 | PassWall | `luci-app-passwall` |
 | PassWall2 | `luci-app-passwall2` |
@@ -338,7 +338,7 @@ dllkids 源里所有**透明代理接管型**插件都只能启用**一个**。�
 
 **换栈三步走**（改 `shell/custom-packages.sh`）：
 
-1. 注释掉「一」里当前启用的 nikki 行；
+1. 注释掉「一」里当前启用的 clashoo 行；
 2. 取消目标栈那一行的注释（**只取消一行**）；
 3. 重跑构建。
 
@@ -367,7 +367,16 @@ ALLOW_PROXY_CONFLICT=1 bash rockchip/build.sh
 > 新增代理栈时，记得同步更新 `rockchip/build.sh` 里的 `_PROXY_STACKS` 表、
 > 本表、以及 `shell/custom-packages.sh` 文件头「注意事项 2」的清单 —— 三处同步。
 
-### nikki 的内核版本：默认跟随上游最新正式版（不是 Alpha）
+### 代理内核来源：clashoo 自带；nikki 跟随上游最新正式版
+
+**当前默认 clashoo：内核由包自带，不覆盖。** clashoo 包（21 MB）内含
+`/usr/libexec/clashoo/mihomo-stable`，并提供 `mihomo` 虚拟名满足自身依赖；
+它的内核路径与 nikki 的 `/usr/libexec/mihomo-core` **不同**。因此
+`rockchip/build.sh` 显式识别 clashoo 并跳过上游 mihomo 下载/覆盖逻辑 ——
+避免白下载一次 GitHub 资产、写入一个没人用的文件。clashoo 的内核版本随
+dllkids 源重建而更新（2026-11-24 实测为 1.19.34），不跟 GitHub 上游最新 tag。
+
+**换回 nikki 时**才启用下述「跟随上游最新正式版」机制：
 
 nikki **自身没有内核频道开关** —— `nikki.init` 直接执行 `/usr/bin/mihomo`，
 `nikki.conf` 与 LuCI 各视图均无版本设置；内核完全由 `mihomo` 包提供
@@ -417,7 +426,7 @@ dllkids 源）会把文件恢复成源内版本，需重刷固件。
 - 少数不是 `luci-app-<短名>` 形式的包（`luci-proto-*` / `luci-mod-*` /
   openclash / passwall 等），取消对应行注释即可。
 
-第三方插件默认启用 **nikki** 一个（见上一节「代理插件互斥」；换栈时必须先停旧的）。
+第三方插件默认启用 **clashoo** 一个（见上一节「代理插件互斥」；换栈时必须先停旧的）。
 
 ### 如何自行增加第三方源
 
@@ -443,7 +452,7 @@ rockchip/
   build.sh                                # 构建脚本 + dllkids 源注入 + 代理互斥校验
   imm.config                              # Image Builder 配置
 shell/
-  custom-packages.sh                      # 可选软件包开关（第三方插件默认仅 nikki）
+  custom-packages.sh                      # 可选软件包开关（第三方插件默认仅 clashoo）
   audit.py                                # 一致性自检脚本（离线 + 在线两类检查）
   apkmeta.py                              # apk-tools v3 ADB 容器元数据解析（供 audit.py / unpack_fw.py）
   unpack_fw.py                            # 固件解包取证（MBR + ext4 + apk 已装数据库，纯 Python）
@@ -620,7 +629,7 @@ config zone
 > 都能访问**无密码**的 root 后台。调试完请务必改回「拒绝」。
 
 > ⚠️ 再次提醒：因为本脚本不干预防火墙，**`flow_offloading` 保持出厂「开启」**。
-> 若启用 nikki 等 TPROXY 透明代理，请自行在
+> 若启用 clashoo 等 TPROXY 透明代理，请自行在
 > LuCI「网络 → 防火墙 → 常规设置」关闭「软件流量分载 / 硬件流量分载」，
 > 否则首包之后的流量会绕过 netfilter 钩子、代理不生效。
 
