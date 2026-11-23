@@ -65,7 +65,7 @@ on:
         required: false
         default: "192.168.1.1"
       enable_modules:
-        description: "可选模块（空格分隔；留空=保持极简基线）。可选：network qos ddns monitor storage tuning usbnet theme-vantage"
+        description: "可选模块（空格分隔；留空=保持极简基线）。可选：network qos monitor storage tuning usbnet theme-vantage"
         required: false
         default: ""
         type: string
@@ -151,7 +151,7 @@ jobs:
         run: |
           # 白名单校验：只允许已知模块名，防止拼错导致静默漏装；同时按 token 匹配，
           # 避免 "networking" 被当成 "network" 的子串放行。
-          ALLOWED="network qos ddns monitor storage tuning usbnet theme-vantage"
+          ALLOWED="network qos monitor storage tuning usbnet theme-vantage"
           for _m in $IN_ENABLE_MODULES; do
             case " $ALLOWED " in
               *" $_m "*) echo "启用模块: $_m" ;;

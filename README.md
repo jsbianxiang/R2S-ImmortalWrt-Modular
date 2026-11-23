@@ -80,7 +80,6 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 | --- | --- | --- |
 | `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier` + 中文（用官方 26.x 版）、`luci-app-upnp`（dllkids 版自带中文） |
 | `qos` | 智能队列管理（保留） | `luci-app-sqm`、`kmod-sched-cake` —— 控制缓冲膨胀，WAN 下挂多设备时改善延迟 |
-| `ddns` | 动态域名 | `luci-app-ddns`（dllkids 版自带中文）、`ddns-scripts`、`ddns-scripts-cloudflare` |
 | `monitor` | 流量监控 | `luci-app-bandix`（实时流量） |
 | `storage` | 存储与文件管理 | `luci-app-filemanager` + 中文、`luci-app-partexp`、`kmod-fs-f2fs`、`zram-swap` |
 | `tuning` | 网络调优 | `kmod-tcp-bbr`、`ethtool` |
@@ -89,10 +88,11 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 
 > **2026-11-24 精简**：移除了 3 项用户不需要的功能 —— `natmap`（内网穿透打洞）、
 > `3proxy`（由 3cat 依赖带入的转发模块，连 3cat 一并移除）、`arpbind`（IP/MAC 绑定）。
-> 三项都是模块**内部**的包，`qos`（SQM + CAKE）作为独立模块按用户要求**保留**，故模块数仍为 8。
+> 三项都是模块**内部**的包，`qos` 按用户要求保留；2026-11-24 又移除 `ddns` 模块
+> （用户光猫为路由模式、R2S 拿私网 IP，DDNS 无意义）。模块数 8 → 7。
 
 **用法**：`Run workflow` 时在 `enable_modules` 里填模块名，空格分隔，例如
-`network qos ddns tuning`。填错模块名会直接报错并列出可用模块（工作流白名单校验），
+`network qos tuning`。填错模块名会直接报错并列出可用模块（工作流白名单校验），
 不会静默漏装。Release 正文的「启用模块」一行会记录本次构建勾选了哪些。
 
 **刻意未移植的 YAOF 插件**（保持原项目设计哲学）：

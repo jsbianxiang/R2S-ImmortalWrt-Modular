@@ -153,7 +153,7 @@ unset _app
 #      缺失的包（kmod-tcp-bbr3 / luci-app-flowcone / kmod-sched-fq-codel）不收录。
 #   b) 不收录任何**透明代理接管型**插件（homeproxy / dae / honk / nikki 等）——
 #      它们必须走「一、第三方插件」的代理互斥机制，避免与默认 clashoo 双开。
-#   c) **不写独立 i18n 包**（2026-11-24 实测）：upnp / ddns 这 2 个 app 在
+#   c) **不写独立 i18n 包**（2026-11-24 实测）：upnp 这个 app 在
 #      **dllkids 源的版本自带简体中文**（包内含 zh-cn.lmo 与 uci-defaults）。
 #      apk 取版本高者（dllkids 27.x > 官方 26.x）⇒ 实际装的是自带中文那份；
 #      若再配官方的 luci-i18n-<名>-zh-cn（26.x），apk 会报
@@ -168,10 +168,9 @@ unset _app
 #      partexp / vantage 两源均无独立 i18n，保持原样。
 #   d) 未知模块名只 WARN 不 FAIL —— 容错，避免拼错一个名字就整包构建失败。
 #
-# 可用模块（8 个；2026-11-24 精简掉 3 个模块内部的包，qos 模块保留）：
+# 可用模块（7 个；2026-11-24 精简：去掉 3 个模块内部的包 + ddns 模块，qos 保留）：
 #   network    网络：WireGuard 协议 + ZeroTier + UPnP（已去掉 natmap）
 #   qos         QoS：SQM + CAKE 队列纪律（用户要求保留）
-#   ddns        动态域名：DDNS + Cloudflare 脚本
 #   monitor     监控：Bandix 实时流量（已去掉 ARP 绑定与 3cat/3proxy）
 #   storage     存储：文件管理 + 分区扩容 + f2fs + zram-swap
 #   tuning      调优：BBR 拥塞控制 + ethtool
@@ -190,9 +189,6 @@ _add_module() {
         qos)
             # 2026-11-24 用户确认保留：SQM 智能队列 + CAKE（缓冲膨胀控制）
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sqm kmod-sched-cake"
-            ;;
-        ddns)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-ddns ddns-scripts ddns-scripts-cloudflare"
             ;;
         monitor)
             # 2026-11-24 精简：移除 arpbind（IP/MAC 绑定）与 3cat
@@ -213,7 +209,7 @@ _add_module() {
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-vantage luci-app-vantage"
             ;;
         *)
-            printf '[WARN] 未知模块名：%s（已忽略；可用：network qos ddns monitor storage tuning usbnet theme-vantage）\n' "$1" >&2
+            printf '[WARN] 未知模块名：%s（已忽略；可用：network qos monitor storage tuning usbnet theme-vantage）\n' "$1" >&2
             ;;
     esac
 }

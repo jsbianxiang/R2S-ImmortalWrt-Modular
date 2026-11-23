@@ -116,7 +116,7 @@
 
 ## 四、可选模块（从 YAOF 移植）
 
-除上述短名开关外，本项目新增 **8 个模块化开关**，由工作流输入 `enable_modules`
+除上述短名开关外，本项目新增 **7 个模块化开关**，由工作流输入 `enable_modules`
 （空格分隔的模块名）经环境变量 `ENABLE_MODULES` 传入 `shell/custom-packages.sh` 的
 `_add_module()` 分派。默认全关，保持原项目的极简基线。
 
@@ -124,7 +124,6 @@
 | --- | --- | --- |
 | `network` | `luci-proto-wireguard` / `luci-app-zerotier`+zh（官方版） / `luci-app-upnp`（dllkids 版自带中文） | 官方 / dllkids |
 | `qos` | `luci-app-sqm` / `kmod-sched-cake`（用户要求保留） | 官方（含 kmods） |
-| `ddns` | `luci-app-ddns`（dllkids 版自带中文） / `ddns-scripts` / `ddns-scripts-cloudflare` | dllkids / 官方 |
 | `monitor` | `luci-app-bandix`（实时流量） | dllkids |
 | `storage` | `luci-app-filemanager` + 中文 / `luci-app-partexp` / `kmod-fs-f2fs` / `zram-swap` | 官方 / dllkids / kmods |
 | `tuning` | `kmod-tcp-bbr` / `ethtool` | 官方 kmods / 官方 |
@@ -133,7 +132,7 @@
 
 > **2026-11-24 精简**：移除 `natmap`、`3proxy`（3cat 的依赖，连 3cat 一并移除）、
 > `arpbind` 共 3 项用户不需要的功能；`qos`（SQM+CAKE）按用户要求保留。
-> 三项都是模块内部的包，模块数仍为 8（`qos` 保留）。
+> 三项都是模块内部的包，`qos` 保留；另移除 `ddns` 模块（私网 IP 无意义）。模块数 7。
 
 **源侧核实（2026-11-24）**：包引用逐个核对存在于 ImmortalWrt 25.12.2
 官方源（10294 包，含 target kmods 1150 包）或 dllkids 源（640 包）；

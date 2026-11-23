@@ -311,3 +311,12 @@ README/PACKAGES 模块表与计数、模块数表述（明确 3 项移除是模�
 
 **验证**：离线 PASS 17 / 在线 PASS 34，FAIL 0；模块三处同步零差集。
 构建包清单含 sqm+cake，不含 natmap/3cat/arpbind。
+
+## 追加：移除 ddns 模块（2026-11-24）
+
+用户确认光猫为路由模式、R2S 的 WAN 拿私网 IP，DDNS 无意义（域名解析不到），
+故删除 `ddns` 模块（`luci-app-ddns` + `ddns-scripts` + `ddns-scripts-cloudflare`）。
+模块数 7 → 7（删 1 个模块，但此前已恢复 qos，净数仍为 7）。
+
+同步：custom-packages.sh、workflow 白名单与输入框、README、PACKAGES。
+离线审计 PASS 17 / FAIL 0，三处模块清单零差集。
