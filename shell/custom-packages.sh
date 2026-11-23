@@ -64,7 +64,7 @@
 # 一、第三方插件
 # -----------------------------------------------------------------------------
 # rockchip/build.sh 注入的第三方源（25.12 / aarch64_generic）除本分支默认启用的
-# nikki 外，还提供 luci-app-ssr-plus / passwall2 / clashoo / openclash / mihomo 等，
+# clashoo 外，还提供 luci-app-ssr-plus / passwall2 / nikki / openclash / mihomo 等，
 # 需要时取消 1.2 的注释即可，无需另外加源。
 #
 # ⚠ 该源的第三方 LuCI 应用**没有**独立中文语言包（源内 640 个包里只有
@@ -151,7 +151,7 @@ unset _app
 #      kmods 的包，逐个核对日期 2026-11-24。缺失的包（kmod-tcp-bbr3 /
 #      luci-app-flowcone / kmod-sched-fq-codel）不收录。
 #   b) 不收录任何**透明代理接管型**插件（homeproxy / dae / honk / nikki 等）——
-#      它们必须走「一、第三方插件」的代理互斥机制，避免与 nikki 双开。
+#      它们必须走「一、第三方插件」的代理互斥机制，避免与默认 clashoo 双开。
 #   c) 每个模块只追加包名，不写 i18n 包，除非该短名不在 I18N_BUILTIN 且官方源
 #      确有对应 luci-i18n-*-zh-cn（下面逐模块注明）。
 #   d) 未知模块名只 WARN 不 FAIL —— 容错，避免拼错一个名字就整包构建失败。
@@ -182,7 +182,8 @@ _add_module() {
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-bandix luci-app-arpbind luci-app-3cat"
             ;;
         storage)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-filemanager luci-i18n-filemanager-zh-cn luci-app-partexp kmod-fs-f2fs zram-swap"
+            # luci-i18n-filemanager-zh-cn 由 build.sh 默认 PACKAGES 已装，此处不重复
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-filemanager luci-app-partexp kmod-fs-f2fs zram-swap"
             ;;
         tuning)
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr ethtool"

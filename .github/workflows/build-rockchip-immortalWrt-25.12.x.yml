@@ -176,6 +176,12 @@ jobs:
             4G)
               ROOTFS_SIZE=4096
               ;;
+            *)
+              # choice 输入在 UI 层已限选，但 GitHub API 触发可绕过 UI 传任意值，
+              # 此时 case 无匹配会让 ROOTFS_SIZE 为空 ⇒ make image 产出异常镜像。
+              echo "Error: 非法 rootfs_partsize='$rootfs_partsize'（应为 1G/2G/3G/4G）" >&2
+              exit 1
+              ;;
           esac
           echo "ROOTFS_SIZE=$ROOTFS_SIZE" >> $GITHUB_ENV
           luci_version="$IN_LUCI_VERSION"

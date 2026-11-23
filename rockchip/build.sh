@@ -101,10 +101,10 @@ PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
 # 代理类插件互斥 —— 构建期硬校验
 # ---------------------------------------------------------------------------
 # 本段 2026-10-13 自 NanoPi-R2S-OpenWrt-Builder 平移而来，与该仓库的校验保持
-# 一致（那边默认 Clashoo，这边默认 nikki，仅默认值不同，判定逻辑完全相同）。
+# 一致（两边默认均为 clashoo，判定逻辑完全相同）。
 #
-# 本项目默认启用 nikki（见 shell/custom-packages.sh「一」）。若想换成
-# dllkids（kenzok8）源里的其他代理（clashoo / openclash / passwall(2) /
+# 本项目默认启用 clashoo（见 shell/custom-packages.sh「一」）。若想换成
+# dllkids（kenzok8）源里的其他代理（nikki / openclash / passwall(2) /
 # ssr-plus / homeproxy / dae(d) / shadowsocks / redsocks / xray / v2raya …），
 # **必须先停旧的再开新的**，不能双开。
 #
@@ -215,7 +215,7 @@ if [ "$_PROXY_N" -gt 1 ]; then
         echo "轻则无法科学上网，重则刷机后直接断网。"
         echo ""
         echo "改法（shell/custom-packages.sh）—— 先停旧的，再开新的："
-        echo "  1) 注释掉「一」里当前启用的那行（默认是 nikki）；"
+        echo "  1) 注释掉「一」里当前启用的那行（默认是 clashoo）；"
         echo "  2) 取消你要用的那行注释；"
         echo "  3) 重跑构建。"
         echo ""
@@ -552,7 +552,7 @@ elif echo " $PACKAGES " | grep -qE " (nikki|luci-app-nikki|luci-app-ssr-plus) ";
         echo "✅ mihomo 内核：${MIHOMO_CORE_TAG}（覆盖源内 apk 同名文件，$(du -h "$MIHOMO_CORE_DIR/mihomo-core" | cut -f1)，sha256 $(sha256sum "$MIHOMO_CORE_DIR/mihomo-core" | cut -c1-12)…）"
     fi
 else
-    echo "⚪️ 未启用 nikki / ssr-plus，跳过 mihomo 内核处理"
+    echo "⚪️ 未启用 nikki / ssr-plus / clashoo，跳过 mihomo 内核处理"
 fi
 
 # =========================================================

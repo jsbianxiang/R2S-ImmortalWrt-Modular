@@ -216,7 +216,7 @@ echo "iface map: lan=$(uci -q get network.lan.device) wan=$(uci -q get network.w
 #
 # ⚠ 提示：ImmortalWrt 的防火墙出厂配置（由 firewall4 补丁写入）为
 #   flow_offloading 1 / flow_offloading_hw 1 / fullcone 1 / fullcone6 0；
-#   若你启用了 nikki 等 TPROXY 透明代理，flow offload 会让首包之后的流量
+#   若你启用了 clashoo 等 TPROXY 透明代理，flow offload 会让首包之后的流量
 #   绕过 netfilter 钩子而使代理失效，需自行在
 #   LuCI「网络 → 防火墙 → 常规设置」里关闭「软件流量分载 / 硬件流量分载」。
 # =========================================================

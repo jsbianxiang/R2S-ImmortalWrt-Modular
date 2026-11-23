@@ -81,3 +81,43 @@ python3 shell/audit.py --online   → PASS 30 / WARN 1 / FAIL 0
 **验证**：`audit.py --online` PASS 31 / WARN 0 / FAIL 0（换栈前的跨栈 WARN 也消失了，
 因为 clashoo 自带内核，不再有 nikki 的 `D: mihomo` 被冲突栈满足的问题）。
 依赖闭包 160 包，含且仅含 clashoo 一套代理前端。
+
+## 追加：全链路联动审查（2026-11-24）
+
+对 workflow ↔ build.sh ↔ custom-packages.sh ↔ 99-custom.sh ↔ audit.py ↔ 文档
+做了全链路联动检查，并修复 3 类问题：
+
+### 修复的真实缺陷
+
+1. **storage 模块重复包**：模块含 `luci-i18n-filemanager-zh-cn`，而 build.sh 默认
+   PACKAGES 已装，全模块同开时重复声明。已去掉模块里的重复项（8 个模块单独/组合
+   实测均无重复）。
+2. **rootfs_partsize 无兜底**：case 映射 1G/2G/3G/4G 无 default 分支；GitHub API
+   触发可绕过 UI 的 choice 限制传任意值，使 ROOTFS_SIZE 为空 → make image 异常。
+   已加 `*` 分支 exit 1。
+3. **残留 nikki 默认假设 5 处**：build.sh 头部对照说明、互斥错误提示、内核跳过
+   日志、custom-packages.sh 模块注释、99-custom.sh 防火墙提示，换 clashoo 时遗漏。
+   已全部同步。
+
+### 验证通过项
+
+- 环境变量传递链：8 个 workflow 输入 → `IN_*` env → docker `-e` → build.sh 消费，
+  完整闭合；`custom_router_ip.txt` 挂载路径与 99-custom.sh 读取路径一致。
+- 产物路径链：容器 `/home/build/immortalwrt/bin` ← 宿主 `${{ github.workspace }}/bin`
+  ← workflow 上传路径，三者一致。
+- WAN 配置链：workflow → build.sh 写 wan-settings → 99-custom.sh 读取，含 DNS glob
+  防护、CIDR 记法等细节。
+- 三 workflow 联动：clean 默认 keep_days=90 与 Artifact retention-days=90 对齐；
+  audit 的 paths 触发器覆盖所有改动文件；action 版本一致。
+- 审计有效性：6 组变异测试（篡改 ALLOWED 白名单、README 模块表、_PROXY_STACKS、
+  注入 inputs 到 shell、未定义 IN_ 变量等）均被 audit 精确判 FAIL，无假阳性通过。
+- YAML 语法：3 个 workflow 全部合法；shell 语法：3 个脚本 bash -n 全过。
+- 离线审计 PASS 16 / FAIL 0。
+
+### 已知的非缺陷（设计取舍）
+
+- `on:` 键被 PyYAML 解析为 `True` 是 YAML 1.1 行为，GitHub Actions 用兼容解析，
+  三个 workflow 原本就正常运行。
+- `clean-workflow.yml` 会删除所有 workflow（含 audit）的运行记录；默认 90 天与
+  Artifact 保留期对齐，属可接受取舍。
+- 模块 d) 未知模块名只 WARN 不 FAIL（工作流层已用白名单 exit 1 兜底，双重防护）。
