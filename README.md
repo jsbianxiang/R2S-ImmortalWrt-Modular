@@ -65,6 +65,38 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 | `wan_ip` | 否 | `192.168.1.2` | WAN 静态 IP（**仅 `wan_proto=static` 时生效**，须在上级光猫网段内） |
 | `wan_gateway` | 否 | `192.168.1.1` | WAN 网关（**仅 `wan_proto=static` 时生效**，上级光猫地址） |
 | `wan_dns` | 否 | `192.168.1.1` | WAN DNS（**仅 `wan_proto=static` 时生效**，留空则用网关；可用空格分隔填多个，如 `223.5.5.5 1.1.1.1`） |
+| `enable_modules` | 否 | 空 | 可选模块（空格分隔）。见下方「可用模块」。留空 = 保持极简基线 |
+
+### 可用模块
+
+本项目在原有极简基线上新增了模块化开关（`enable_modules` 工作流输入），把 YAOF
+固件里的常用插件移植过来，**按需勾选、默认全关**。所有模块用到的包均于 2026-11-24
+逐项核对存在于 ImmortalWrt 25.12.2 官方源（含 target kmods）或已注入的 dllkids 源；
+审计脚本的在线检查 14c 会持续验证这一点。
+
+| 模块名 | 功能 | 包含的包 |
+| --- | --- | --- |
+| `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier`、`luci-app-natmap`、`luci-app-natmapt`、`luci-app-upnp` |
+| `qos` | 智能队列管理 | `luci-app-sqm`、`kmod-sched-cake` |
+| `ddns` | 动态域名 | `luci-app-ddns`、`ddns-scripts`、`ddns-scripts-cloudflare` |
+| `monitor` | 流量监控与绑定 | `luci-app-bandix`、`luci-app-arpbind`、`luci-app-3cat` |
+| `storage` | 存储与文件管理 | `luci-app-filemanager` + 中文、`luci-app-partexp`、`kmod-fs-f2fs`、`zram-swap` |
+| `tuning` | 网络调优 | `kmod-tcp-bbr`、`ethtool` |
+| `usbnet` | 手机 USB 共享网络 | `kmod-usb-net-rndis`、`kmod-usb-net-cdc-ether`、`kmod-usb-net-ipheth`、`usbmuxd` |
+| `theme-vantage` | Vantage 现代主题 | `luci-theme-vantage`、`luci-app-vantage`（dllkids 源，无独立中文包，故不追加 zh-cn） |
+
+**用法**：`Run workflow` 时在 `enable_modules` 里填模块名，空格分隔，例如
+`network qos ddns tuning`。填错模块名会直接报错并列出可用模块（工作流白名单校验），
+不会静默漏装。Release 正文的「启用模块」一行会记录本次构建勾选了哪些。
+
+**刻意未移植的 YAOF 插件**（保持原项目设计哲学）：
+
+- **代理类**（HomeProxy / dae / Honk / FlowCone）：这些是透明代理接管型，与默认的
+  nikki 互斥，必须走「一、第三方插件」的换栈流程，不能和 nikki 双开。其中
+  FlowCone 依赖的 eBPF FullCone 模块在 ImmortalWrt 25.12 官方源中缺失，无法移植。
+- **BBR3**：`kmod-tcp-bbr3` 在 ImmortalWrt 25.12 的 rockchip kmods 中不存在，
+  故 `tuning` 模块只提供 BBR（`kmod-tcp-bbr`）。
+- **Docker / store / istore**：原项目明确不集成，维持不变。
 
 ### 使用方法
 
@@ -273,7 +305,7 @@ dllkids 源里所有**透明代理接管型**插件都只能启用**一个**。�
 | fchomo | `luci-app-fchomo` |
 
 > 后 9 项是 2026-10-12「联动审计」补入的（原表只有 18 套）。起因：dllkids
-> 源有 **411 个 `luci-app-*`**，人工维护的黑名单必然滞后。审计方法（可复现）：
+> 源有 **416 个 `luci-app-*`**（2026-11-24 复核），人工维护的黑名单必然滞后。审计方法（可复现）：
 > 从源目录列表按 ① 包名关键词（clash / ss / xray / v2ray / proxy / dae …）
 > ② apk 体积（自带内核的前端必然 ≥ 数 MiB —— nekobox 10 MiB、honk 9.6 MiB、
 > openclash 7.8 MiB；而纯配置页只有几 KiB —— redsocks 2.5 KiB、ss-redir
@@ -460,7 +492,8 @@ python3 shell/audit.py --online   # 追加在线检查（拉官方源 + dllkids 
   在 push 到 `main`、PR 与**每周定时**（周一 18:17 UTC = 北京时间周二 02:17）时
   自动运行，改动上述任一文件即触发。定时跑的意义：源侧数字会随上游源演进漂移，
   只靠 push 触发意味着「没人动仓库」时漂移能一直藏着（2026-10-23 的
-  617/409 → 622/411 就是这么漏过来的）。
+  617/409 → 622/411、以及 2026-11-24 复核发现的 622/411 → 640/416
+  都是这么漏过来的）。
 - **耗时**：检查 15（依赖闭包）要读 100+ 个 `.apk` 的前 32 KB 元数据，
   在线全跑约 1–4 分钟；内置 `CLOSURE_MAX_PKGS=500` / `CLOSURE_BUDGET_S=420` 双上限。
 

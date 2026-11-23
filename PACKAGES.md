@@ -56,13 +56,13 @@
 > 「代理插件互斥」）。`rockchip/build.sh` 在检测到 `luci-app-ssr-plus` 时会
 > 顺带加入该源的 `mihomo` 包作为内核（不再手动下载固定版本二进制）。
 >
-> ⚠️ 该源的第三方 LuCI 应用**没有**独立中文语言包（源内 622 个包中只有 `clashoo`
+> ⚠️ 该源的第三方 LuCI 应用**没有**独立中文语言包（源内 640 个包中只有 `clashoo`
 > 与 `eqos` 两个 i18n 包），启用它们时**不要**加 `luci-i18n-xxx-zh-cn`，
 > 否则 `make image` 会因找不到包而失败。
 > （2026-10-14 复核：源侧从 616 增至 **617** —— 新增 `ifb-shaper-0.1.1-r1`，
 > 另 9 个包版本号上浮。`audit.py --online` 会逐项实测比对，文档不用手工同步。）
-> （2026-10-23 复核：源侧从 617 增至 **622** —— 新增 5 个包，其中
-> `luci-app-*` 409 → 411。）
+> （2026-11-24 复核：源侧增至 **640** 个包，其中 `luci-app-*` **416** 个 ——
+> 上游停更期间又漂移过，由 `audit.py --online` 捕获。）
 
 > ⚠️ 代理插件互斥：nikki / clashoo / openclash / passwall(2) / ssr-plus / daed …
 > 只能启用一个，**先停旧的再开新的**。`rockchip/build.sh` 有构建期硬校验
@@ -106,3 +106,28 @@
    若还要让**设备端**能安装，再按 `rockchip/build.sh` 里 dllkids 源的写法，把源写进
    `files/etc/apk/repositories.d/customfeeds.list`（apk 包预留的第三方源 conffile），
    公钥写进 `files/etc/apk/keys/`。
+
+## 四、可选模块（从 YAOF 移植）
+
+除上述短名开关外，本项目新增 **8 个模块化开关**，由工作流输入 `enable_modules`
+（空格分隔的模块名）经环境变量 `ENABLE_MODULES` 传入 `shell/custom-packages.sh` 的
+`_add_module()` 分派。默认全关，保持原项目的极简基线。
+
+| 模块 | 包 | 来源 |
+| --- | --- | --- |
+| `network` | `luci-proto-wireguard` / `luci-app-zerotier` / `luci-app-natmap` / `luci-app-natmapt` / `luci-app-upnp` | 官方 / dllkids |
+| `qos` | `luci-app-sqm` / `kmod-sched-cake` | 官方（含 kmods） |
+| `ddns` | `luci-app-ddns` / `ddns-scripts` / `ddns-scripts-cloudflare` | 官方 |
+| `monitor` | `luci-app-bandix` / `luci-app-arpbind` / `luci-app-3cat` | dllkids / 官方 |
+| `storage` | `luci-app-filemanager` + 中文 / `luci-app-partexp` / `kmod-fs-f2fs` / `zram-swap` | 官方 / dllkids / kmods |
+| `tuning` | `kmod-tcp-bbr` / `ethtool` | 官方 kmods / 官方 |
+| `usbnet` | `kmod-usb-net-rndis` / `kmod-usb-net-cdc-ether` / `kmod-usb-net-ipheth` / `usbmuxd` | 官方 kmods / 官方 |
+| `theme-vantage` | `luci-theme-vantage` / `luci-app-vantage` | dllkids（无独立 i18n 包） |
+
+**源侧核实（2026-11-24）**：以上 26 条包引用逐个核对存在于 ImmortalWrt 25.12.2
+官方源（10294 包，含 target kmods 1150 包）或 dllkids 源（640 包）；
+`audit.py --online` 的检查 14c 会持续复验，源侧漂移即判 FAIL。
+
+**刻意未收录**：`kmod-tcp-bbr3` / `luci-app-flowcone` / `kmod-sched-fq-codel`
+在 ImmortalWrt 25.12 源中均不存在；透明代理接管型插件（HomeProxy / dae / Honk 等）
+不走模块开关，必须遵循 README「代理插件互斥」的换栈流程。

@@ -64,6 +64,11 @@ on:
         description: "WAN DNS（仅 wan_proto=static 时生效，留空则用网关；可空格分隔填多个）"
         required: false
         default: "192.168.1.1"
+      enable_modules:
+        description: "可选模块（空格分隔；留空=保持极简基线）。可选：network qos ddns monitor storage tuning usbnet theme-vantage"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -97,6 +102,7 @@ jobs:
       IN_WAN_IP: ${{ inputs.wan_ip }}
       IN_WAN_GATEWAY: ${{ inputs.wan_gateway }}
       IN_WAN_DNS: ${{ inputs.wan_dns }}
+      IN_ENABLE_MODULES: ${{ inputs.enable_modules }}
 
     steps:
       - name: Checkout code
@@ -141,6 +147,19 @@ jobs:
             echo "WAN 接入方式: dhcp（官方默认，地址由上级设备分配，无需填写 wan_ip/wan_gateway）"
           fi
 
+      - name: Validate optional modules
+        run: |
+          # 白名单校验：只允许已知模块名，防止拼错导致静默漏装；同时按 token 匹配，
+          # 避免 "networking" 被当成 "network" 的子串放行。
+          ALLOWED="network qos ddns monitor storage tuning usbnet theme-vantage"
+          for _m in $IN_ENABLE_MODULES; do
+            case " $ALLOWED " in
+              *" $_m "*) echo "启用模块: $_m" ;;
+              *) echo "Error: 未知模块名 '$_m'。可用模块：$ALLOWED" && exit 1 ;;
+            esac
+          done
+          echo "模块总数: $(echo $IN_ENABLE_MODULES | wc -w)"
+
       - name: Building R2S ImmortalWrt 25.12.x
         run: |
           rootfs_partsize="$IN_ROOTFS_PARTSIZE"
@@ -183,6 +202,7 @@ jobs:
               -e WAN_IP="$IN_WAN_IP" \
               -e WAN_GATEWAY="$IN_WAN_GATEWAY" \
               -e WAN_DNS="$IN_WAN_DNS" \
+              -e ENABLE_MODULES="$IN_ENABLE_MODULES" \
           immortalwrt/imagebuilder:rockchip-armv8-openwrt-${luci_version} /bin/bash /home/build/immortalwrt/build.sh
 
       - name: Create info
@@ -196,6 +216,11 @@ jobs:
             WAN_LINE="- 🌐 **WAN 接入**: DHCP（由上级设备自动分配地址）"
             WAN6_LINE="- 🧬 **WAN6**: DHCPv6（用于获取 PD 前缀）"
           fi
+          if [ -n "$IN_ENABLE_MODULES" ]; then
+            MODULES_LINE="- 🧩 **启用模块**: $IN_ENABLE_MODULES"
+          else
+            MODULES_LINE="- 🧩 **启用模块**: 无（极简基线）"
+          fi
           BUILD_TIME="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           cat > ${{ github.workspace }}/router-info.md <<EOF
           ## 📡 R2S 固件信息
@@ -205,6 +230,7 @@ jobs:
           - 🏠 **后台地址**: $IN_ROUTER_IP
           ${WAN_LINE}
           ${WAN6_LINE}
+          ${MODULES_LINE}
           - 👤 **用户名**: root
           - 🔑 **密码**: 无
           - 🔖 **构建提交**: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})

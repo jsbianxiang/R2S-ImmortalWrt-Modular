@@ -44,7 +44,7 @@
 #          不接管透明流量。）
 #   3. 本分支不集成 store / istore，故不提供依赖 istore 的插件选项。
 #   4. 硬路由 / 小闪存设备请酌情启用；包过多会导致固件过大或构建失败。
-#   5. 「三」的短名已对 ImmortalWrt 25.12 官方源（aarch64_generic，共 11428 个包）
+#   5. 「三」的短名已对 ImmortalWrt 25.12 官方源（aarch64_generic，共 11542 个包）
 #      逐一校验。25.12 官方源**没有 luci-app- 前端**的 cshark / dynapoint /
 #      haproxy-tcp / mjpg-streamer / nft-qos / splash，以及官方源本就没有的
 #      nikki / radicale，均已剔除，避免「取消注释即构建失败」。
@@ -67,11 +67,10 @@
 # nikki 外，还提供 luci-app-ssr-plus / passwall2 / clashoo / openclash / mihomo 等，
 # 需要时取消 1.2 的注释即可，无需另外加源。
 #
-# ⚠ 该源的第三方 LuCI 应用**没有**独立中文语言包（源内 622 个包里只有
+# ⚠ 该源的第三方 LuCI 应用**没有**独立中文语言包（源内 640 个包里只有
 #   clashoo 与 eqos 两个 i18n 包），所以不要给它们加 luci-i18n-xxx-zh-cn，
 #   否则 make image 会因找不到包而失败。
-#   （2026-10-14 复核：源侧 616 → 617，新增 ifb-shaper；audit.py --online 逐项实测。）
-#   （2026-10-23 复核：源侧 617 → 622，新增 5 个包，其中 luci-app-* 409 → 411。）
+#   （2026-11-24 复核：源侧 622 → 640，luci-app-* 411 → 416；audit.py --online 捕获。）
 # =============================================================================
 # 【当前已启用】nikki（eBPF / TUN 体系）—— ⚠ 与 Clashoo / openclash 等互斥，
 # 换栈时必须先把下面这行注释掉，再取消目标栈那一行的注释（见文件头「注意事项 2」）。
@@ -130,6 +129,70 @@ unset _app
 # 代理（⚠ 与其他代理栈互斥，只能选一个）
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES geoview xray-core sing-box hysteria luci-i18n-passwall-zh-cn"
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-openclash luci-compat kmod-tun kmod-inet-diag kmod-nft-tproxy bash curl ip-full unzip"
+
+# -----------------------------------------------------------------------------
+# 2.3 模块化开关（本项目新增；从 YAOF 插件集移植）
+# -----------------------------------------------------------------------------
+# 由工作流输入 `enable_modules` 经 env 中转传入本脚本的 ENABLE_MODULES 环境变量
+# （空格分隔的模块名）。默认空 = 一个都不装，保持原项目的极简基线。
+#
+# 设计约束（务必遵守，否则会破坏原项目的验证体系）：
+#   a) 只收录**已核实存在**于 ImmortalWrt 25.12.2 官方源 / dllkids 源 / target
+#      kmods 的包，逐个核对日期 2026-11-24。缺失的包（kmod-tcp-bbr3 /
+#      luci-app-flowcone / kmod-sched-fq-codel）不收录。
+#   b) 不收录任何**透明代理接管型**插件（homeproxy / dae / honk / nikki 等）——
+#      它们必须走「一、第三方插件」的代理互斥机制，避免与 nikki 双开。
+#   c) 每个模块只追加包名，不写 i18n 包，除非该短名不在 I18N_BUILTIN 且官方源
+#      确有对应 luci-i18n-*-zh-cn（下面逐模块注明）。
+#   d) 未知模块名只 WARN 不 FAIL —— 容错，避免拼错一个名字就整包构建失败。
+#
+# 可用模块（8 个）：
+#   network    网络：WireGuard 协议 + ZeroTier + NATMap + NATMap-T + UPnP
+#  qos          QoS：SQM + CAKE 队列纪律
+#   ddns        动态域名：DDNS + Cloudflare 脚本
+#   monitor     监控：Bandix 实时流量 + ARP 绑定 + 3cat
+#   storage     存储：文件管理 + 分区扩容 + f2fs + zram-swap
+#   tuning      调优：BBR 拥塞控制 + ethtool
+#   usbnet      USB 网络：RNDIS + CDC-Ether + ipheth + usbmuxd（手机共享网络）
+#   theme-vantage 主题：Vantage（dllkids 源，无独立 i18n 包，故不追加 zh-cn）
+ENABLE_MODULES="${ENABLE_MODULES:-}"
+
+_add_module() {
+    case "$1" in
+        network)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-app-natmap luci-app-natmapt luci-app-upnp"
+            ;;
+        qos)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sqm kmod-sched-cake"
+            ;;
+        ddns)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-ddns ddns-scripts ddns-scripts-cloudflare"
+            ;;
+        monitor)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-bandix luci-app-arpbind luci-app-3cat"
+            ;;
+        storage)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-filemanager luci-i18n-filemanager-zh-cn luci-app-partexp kmod-fs-f2fs zram-swap"
+            ;;
+        tuning)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-tcp-bbr ethtool"
+            ;;
+        usbnet)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES kmod-usb-net-rndis kmod-usb-net-cdc-ether kmod-usb-net-ipheth usbmuxd"
+            ;;
+        theme-vantage)
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-vantage luci-app-vantage"
+            ;;
+        *)
+            printf '[WARN] 未知模块名：%s（已忽略；可用：network qos ddns monitor storage tuning usbnet theme-vantage）\n' "$1" >&2
+            ;;
+    esac
+}
+
+for _mod in $ENABLE_MODULES; do
+    _add_module "$_mod"
+done
+unset _mod
 
 # =============================================================================
 # 三、可用短名清单（已对 ImmortalWrt 25.12 官方源校验；填进 2.1 的 ENABLE_APPS）

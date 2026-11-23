@@ -23,6 +23,8 @@ shell/audit.py —— 仓库一致性自检（把「人工审计」里反复过�
    2. 代理栈数量 / marker 数量与各处声明的数字一致
    3. `_PROXY_OK` 白名单 ⇄ README「不算冲突」⇄ custom-packages.sh「不算冲突」
    4. 短名清单格式合法、条数可统计、`I18N_BUILTIN` 豁免项确实在清单里
+   4b. 模块清单三处同步：`custom-packages.sh` 的 `_add_module()` ⇄ workflow
+       `ALLOWED` 白名单 ⇄ README「可用模块」表（本项目新增的模块化开关）
    5. 工作流输入安全：`${{ inputs.* }}` 只允许出现在 `env:` 赋值处，不得直插 shell
    6. 工作流 `IN_*` 变量：shell 里用到的必须在 job `env:` 里定义
    7. 构建期写入工作区的路径，必须「已被 git 跟踪」或「已被 .gitignore 忽略」
@@ -30,12 +32,14 @@ shell/audit.py —— 仓库一致性自检（把「人工审计」里反复过�
    9. 语法：`bash -n` 全部 shell 脚本
   在线（--online）
   10. dllkids 源可达性 + 计数 vs 文档声明
-  11. 官方 5 个 arch feed + target + kmods 总数 vs 声明（11428）
+  11. 官方 5 个 arch feed + target + kmods 总数 vs 声明（11542）
   12. `_PROXY_STACKS` 全部 marker 是否存在于源（黑名单无死条目）
   13. `_PROXY_OK` 全部项是否存在于源
   14. 短名清单的 `luci-app-*` / `luci-i18n-*` 是否存在于源
   14b. 短名清单是否**按官方源**可解析（custom-packages.sh「注意事项 5」的承诺：
       官方源没有的前端一律剔除，不走第三方源兜底）
+  14c. 模块包存在性：每个 `_add_module()` 分支引用的包必须能在 dllkids / 官方源
+      （含 target kmods）解析到，避免勾选模块后 make image 失败
   15. **PACKAGES 依赖闭包**：用 bash 真实复现 build.sh 的 PACKAGES 拼接，BFS 解依赖
       闭包（读 `.apk` 前 32 KB 的 ADB 元数据），检查
         a) 显式包全部可解析；
@@ -346,6 +350,54 @@ def parse_short_names(cs: str) -> list[str]:
     return names
 
 
+def parse_implemented_modules(cs: str) -> dict[str, list[str]]:
+    """解析 custom-packages.sh 的 _add_module() case 分支。
+
+    返回 {模块名: [包名...]}。只认缩进的 case 分支行 `名称)` 与其后
+    `CUSTOM_PACKAGES="$CUSTOM_PACKAGES ..."` 里的包名。
+    """
+    out: dict[str, list[str]] = {}
+    lines = cs.splitlines()
+    in_func = False
+    cur: str | None = None
+    for l in lines:
+        if "_add_module()" in l:
+            in_func = True
+            continue
+        if not in_func:
+            continue
+        if l.strip() == "}" and cur is None:
+            in_func = False
+            continue
+        m = re.match(r"^\s{8}([a-z][a-z0-9-]*)\)\s*$", l)
+        if m:
+            cur = m.group(1)
+            out[cur] = []
+            continue
+        if cur and "CUSTOM_PACKAGES=" in l:
+            pkgs = re.search(r'CUSTOM_PACKAGES="\$CUSTOM_PACKAGES (.*?)"', l)
+            if pkgs:
+                out[cur].extend(pkgs.group(1).split())
+        if l.strip() == ";;":
+            cur = None
+    return {k: v for k, v in out.items() if v}
+
+
+def parse_workflow_modules(wf: str) -> set[str]:
+    """解析 workflow 里 Validate optional modules 步骤的 ALLOWED 白名单。"""
+    m = re.search(r'ALLOWED="([a-z0-9 -]+)"', wf)
+    return set(m.group(1).split()) if m else set()
+
+
+def parse_readme_modules(rd: str) -> set[str]:
+    """解析 README「可用模块」表里反引号包裹的模块名。"""
+    start = rd.find("可用模块")
+    if start < 0:
+        return set()
+    seg = rd[start : start + 3000]
+    return set(re.findall(r"`([a-z][a-z0-9-]*)`", seg))
+
+
 def declared_number(text: str, pattern: str) -> int | None:
     m = re.search(pattern, text)
     return int(m.group(1)) if m else None
@@ -450,6 +502,32 @@ def offline_checks(version: str) -> None:
         )
     else:
         ok("I18N_BUILTIN 豁免项均在短名清单内", f"{i18n_builtin}")
+
+    # --- 4b. 模块化开关清单三处一致 ---------------------------------------
+    # custom-packages.sh 的 _add_module() ⇄ workflow 的 ALLOWED 白名单
+    # ⇄ README「可用模块」表。三处漂移会导致「文档说能装、实际装不上」或反之。
+    impl_mods = parse_implemented_modules(custom_sh)
+    wf_mods = parse_workflow_modules(wf)
+    rd_mods = parse_readme_modules(rd)
+    if not impl_mods:
+        fail("模块清单：解析 _add_module()", "custom-packages.sh 里解析不到任何模块分支")
+    else:
+        check(
+            set(impl_mods) == wf_mods,
+            "模块清单：custom-packages.sh ⇄ workflow ALLOWED",
+            f"{len(impl_mods)} 个模块零差集",
+            f"差集 实现-白名单={sorted(set(impl_mods) - wf_mods)} "
+            f"白名单-实现={sorted(wf_mods - set(impl_mods))}",
+        )
+        missing_doc = sorted(set(impl_mods) - rd_mods)
+        check(
+            not missing_doc,
+            "模块清单：README 覆盖全部模块",
+            f"{len(impl_mods)}/{len(impl_mods)} 模块已在 README 说明",
+            f"README 缺少模块说明：{missing_doc}",
+        )
+        total_pkgs = sum(len(v) for v in impl_mods.values())
+        ok("模块包清单可解析", f"{len(impl_mods)} 个模块 / {total_pkgs} 条包引用")
 
     # --- 5/6. 工作流输入安全与变量联动 ------------------------------------
     bad_inject = []
@@ -858,6 +936,31 @@ def online_checks(version: str, decl: dict) -> None:
                 "短名清单：官方源承诺核验",
                 f"仅第三方源可解析 ⇒ 违背承诺：app 缺 {miss_off_app}；"
                 f"i18n 缺 {miss_off_i18n}",
+            )
+
+    # --- 14c. 模块包存在性 ------------------------------------------------
+    # 每个模块引用的包必须能在 dllkids / 官方源（含 kmods）解析到，
+    # 否则用户勾选该模块后 make image 会因 "no such package" 失败。
+    impl_mods = parse_implemented_modules(custom_sh)
+    if impl_mods and (dll or off):
+        all_known = dll | off
+        bad_by_mod: dict[str, list[str]] = {}
+        for mod, pkgs in impl_mods.items():
+            missing = [p for p in pkgs if p not in all_known]
+            if missing:
+                bad_by_mod[mod] = missing
+        if not bad_by_mod:
+            total = sum(len(v) for v in impl_mods.values())
+            ok(
+                "模块包存在性",
+                f"{len(impl_mods)} 个模块 / {total} 条包引用全部可在源解析"
+                f"（dll {len(dll)} + 官方含 kmods {len(off)}）",
+            )
+        else:
+            fail(
+                "模块包存在性",
+                "以下模块含源内不存在的包（勾选即构建失败）："
+                + "; ".join(f"{m}: {p}" for m, p in bad_by_mod.items()),
             )
 
     # --- 15. 依赖闭包 & 第二个代理前端 -----------------------------------
