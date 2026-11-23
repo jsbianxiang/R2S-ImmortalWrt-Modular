@@ -1,13 +1,27 @@
 #!/bin/bash
 # 构建期日志（注意：固件内的首启日志是 /etc/immortalwrt-builder/uci-defaults-log.txt，两者不是一回事）
-# source 路径基于脚本自身位置，避免依赖调用时的当前工作目录
-# （容器内由 workflow 挂载到 /home/build/immortalwrt/build.sh，shell/ 同级挂载）。
+# 定位 custom-packages.sh —— 两种运行环境的目录布局不同，必须都兼容：
+#   a) 容器内（workflow）：build.sh 挂载到 /home/build/immortalwrt/build.sh，
+#      shell/ 挂载到 /home/build/immortalwrt/shell ⇒ 与 build.sh 同目录的**子目录**；
+#   b) 本地仓库：build.sh 在 rockchip/ 下，shell/ 在仓库根 ⇒ build.sh 的**上级**目录。
+# 逐个探测，找到即 source；保留失败检查，避免静默产出缺插件的固件。
 _BUILD_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$_BUILD_SH_DIR/../shell/custom-packages.sh" || {
-    echo "ERROR: 无法加载 shell/custom-packages.sh" >&2
+_CUSTOM_SH=""
+for _cand in "$_BUILD_SH_DIR/shell/custom-packages.sh" \
+             "$_BUILD_SH_DIR/../shell/custom-packages.sh" \
+             "shell/custom-packages.sh"; do
+    if [ -f "$_cand" ]; then _CUSTOM_SH="$_cand"; break; fi
+done
+if [ -z "$_CUSTOM_SH" ]; then
+    echo "ERROR: 找不到 shell/custom-packages.sh（已尝试：$_BUILD_SH_DIR/shell/、$_BUILD_SH_DIR/../shell/、当前目录 shell/）" >&2
+    exit 1
+fi
+echo "==> 加载插件清单: $_CUSTOM_SH"
+source "$_CUSTOM_SH" || {
+    echo "ERROR: 无法加载 $_CUSTOM_SH" >&2
     exit 1
 }
-unset _BUILD_SH_DIR
+unset _BUILD_SH_DIR _CUSTOM_SH _cand
 echo "第三方APK软件包: $CUSTOM_PACKAGES"
 LOGFILE="/tmp/build.log"
 echo "Starting build.sh at $(date)" >> $LOGFILE
