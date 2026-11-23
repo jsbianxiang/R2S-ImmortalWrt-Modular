@@ -153,26 +153,25 @@ unset _app
 #      缺失的包（kmod-tcp-bbr3 / luci-app-flowcone / kmod-sched-fq-codel）不收录。
 #   b) 不收录任何**透明代理接管型**插件（homeproxy / dae / honk / nikki 等）——
 #      它们必须走「一、第三方插件」的代理互斥机制，避免与默认 clashoo 双开。
-#   c) **不写独立 i18n 包**（2026-11-24 实测修正）：natmap / upnp / ddns /
-#      arpbind / 3cat 这 5 个 app 在 **dllkids 源的版本自带简体中文**
-#      （包内含 usr/lib/lua/luci/i18n/<名>.zh-cn.lmo 与 uci-defaults）。apk 取版本
-#      高者（dllkids 27.x > 官方 26.x）⇒ 实际装的是自带中文那份；若再配官方的
-#      luci-i18n-<名>-zh-cn（26.x），apk 会报
+#   c) **不写独立 i18n 包**（2026-11-24 实测）：upnp / ddns 这 2 个 app 在
+#      **dllkids 源的版本自带简体中文**（包内含 zh-cn.lmo 与 uci-defaults）。
+#      apk 取版本高者（dllkids 27.x > 官方 26.x）⇒ 实际装的是自带中文那份；
+#      若再配官方的 luci-i18n-<名>-zh-cn（26.x），apk 会报
 #        "trying to overwrite ... owned by luci-app-<名>" 使 make image 失败。
 #      这与文件头「注意事项 6」的 I18N_BUILTIN 是同一类问题，只是发生在模块里。
+#      （原 natmap / arpbind / 3cat 也属此类，但已在本次精简中移除。）
 #      ⚠ 例外 zerotier：dllkids 版本（1.0-r21）**低于**官方（26.x），apk 装的是
 #      官方那份（不含中文），配 luci-i18n-zerotier-zh-cn 不会冲突；2026-11-24
-#      的构建日志实证——其余 5 个都报了 trying to overwrite，唯独 zerotier 没有。
+#      的构建日志实证——其余 app 都报了 trying to overwrite，唯独 zerotier 没有。
 #      audit.py 检查 4c 对 zerotier 放行。
 #      filemanager 不在 dllkids 源（用官方版），其中文包由 build.sh 默认已装；
-#      natmapt / partexp / vantage 两源均无独立 i18n，保持原样。
+#      partexp / vantage 两源均无独立 i18n，保持原样。
 #   d) 未知模块名只 WARN 不 FAIL —— 容错，避免拼错一个名字就整包构建失败。
 #
-# 可用模块（8 个）：
-#   network    网络：WireGuard 协议 + ZeroTier + NATMap + NATMap-T + UPnP
-#  qos          QoS：SQM + CAKE 队列纪律
+# 可用模块（7 个；2026-11-24 按用户实际需要精简）：
+#   network    网络：WireGuard 协议 + ZeroTier + UPnP（已去掉 natmap）
 #   ddns        动态域名：DDNS + Cloudflare 脚本
-#   monitor     监控：Bandix 实时流量 + ARP 绑定 + 3cat
+#   monitor     监控：Bandix 实时流量（已去掉 ARP 绑定与 3cat/3proxy）
 #   storage     存储：文件管理 + 分区扩容 + f2fs + zram-swap
 #   tuning      调优：BBR 拥塞控制 + ethtool
 #   usbnet      USB 网络：RNDIS + CDC-Ether + ipheth + usbmuxd（手机共享网络）
@@ -182,21 +181,18 @@ ENABLE_MODULES="${ENABLE_MODULES:-}"
 _add_module() {
     case "$1" in
         network)
-            # ⚠ 不收录 luci-app-natmapt：dllkids 源有这个前端，但它依赖的核心包
-            #   `natmapt` 在所有源都不存在（2026-11-24 实测），勾选即 make image
-            #   报 "natmapt (no such package)" 失败。官方的 luci-app-natmap +
-            #   natmap 组合完整可用（natmap 核心包由 apk 自动解析），故用官方版。
+            # ⚠ 不收录 natmap / natmapt：2026-11-24 用户确认不需要内网穿透打洞；
+            #   且 natmapt 前端依赖的核心包全源缺失（曾致构建失败）。
             # zerotier 用官方 26.x（dllkids 的 1.0 更低），故可安全配官方中文包
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-i18n-zerotier-zh-cn luci-app-natmap luci-app-upnp"
-            ;;
-        qos)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sqm kmod-sched-cake"
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-i18n-zerotier-zh-cn luci-app-upnp"
             ;;
         ddns)
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-ddns ddns-scripts ddns-scripts-cloudflare"
             ;;
         monitor)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-bandix luci-app-arpbind luci-app-3cat"
+            # 2026-11-24 精简：移除 arpbind（IP/MAC 绑定）与 3cat
+            #   —— 3cat 依赖 3proxy-mod-tcppm/udppm（即 LuCI 里的 3proxy 来源）
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-bandix"
             ;;
         storage)
             # luci-i18n-filemanager-zh-cn 由 build.sh 默认 PACKAGES 已装，此处不重复
@@ -212,7 +208,7 @@ _add_module() {
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-theme-vantage luci-app-vantage"
             ;;
         *)
-            printf '[WARN] 未知模块名：%s（已忽略；可用：network qos ddns monitor storage tuning usbnet theme-vantage）\n' "$1" >&2
+            printf '[WARN] 未知模块名：%s（已忽略；可用：network ddns monitor storage tuning usbnet theme-vantage）\n' "$1" >&2
             ;;
     esac
 }

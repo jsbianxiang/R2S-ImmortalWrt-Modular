@@ -78,23 +78,26 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 
 | 模块名 | 功能 | 包含的包 |
 | --- | --- | --- |
-| `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier` + 中文（用官方 26.x 版）、`luci-app-natmap`（核心 natmap 自动装入）、`luci-app-upnp`。后两者用 dllkids 版自带中文，不另装 i18n。⚠ 不含 natmapt：其核心包全源缺失 |
-| `qos` | 智能队列管理 | `luci-app-sqm`、`kmod-sched-cake` |
+| `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier` + 中文（用官方 26.x 版）、`luci-app-upnp`（dllkids 版自带中文） |
 | `ddns` | 动态域名 | `luci-app-ddns`（dllkids 版自带中文）、`ddns-scripts`、`ddns-scripts-cloudflare` |
-| `monitor` | 流量监控与绑定 | `luci-app-bandix`、`luci-app-arpbind`、`luci-app-3cat`（后两者 dllkids 版自带中文） |
+| `monitor` | 流量监控 | `luci-app-bandix`（实时流量） |
 | `storage` | 存储与文件管理 | `luci-app-filemanager` + 中文、`luci-app-partexp`、`kmod-fs-f2fs`、`zram-swap` |
 | `tuning` | 网络调优 | `kmod-tcp-bbr`、`ethtool` |
 | `usbnet` | 手机 USB 共享网络 | `kmod-usb-net-rndis`、`kmod-usb-net-cdc-ether`、`kmod-usb-net-ipheth`、`usbmuxd` |
 | `theme-vantage` | Vantage 现代主题 | `luci-theme-vantage`、`luci-app-vantage`（dllkids 源，无独立中文包，故不追加 zh-cn） |
 
+> **2026-11-24 精简**：移除了 4 项用户不需要的功能 —— `natmap`（内网穿透打洞）、
+> `3proxy`（由 3cat 依赖带入的转发模块，连 3cat 一并移除）、`arpbind`（IP/MAC 绑定）、
+> `qos`（SQM 智能队列 + CAKE）。模块数从 8 减为 7。
+
 **用法**：`Run workflow` 时在 `enable_modules` 里填模块名，空格分隔，例如
-`network qos ddns tuning`。填错模块名会直接报错并列出可用模块（工作流白名单校验），
+`network ddns tuning`。填错模块名会直接报错并列出可用模块（工作流白名单校验），
 不会静默漏装。Release 正文的「启用模块」一行会记录本次构建勾选了哪些。
 
 **刻意未移植的 YAOF 插件**（保持原项目设计哲学）：
 
 - **代理类**（HomeProxy / dae / Honk / FlowCone）：这些是透明代理接管型，与默认的
-  nikki 互斥，必须走「一、第三方插件」的换栈流程，不能和 nikki 双开。其中
+  clashoo 互斥，必须走「一、第三方插件」的换栈流程，不能和 clashoo 双开。其中
   FlowCone 依赖的 eBPF FullCone 模块在 ImmortalWrt 25.12 官方源中缺失，无法移植。
 - **BBR3**：`kmod-tcp-bbr3` 在 ImmortalWrt 25.12 的 rockchip kmods 中不存在，
   故 `tuning` 模块只提供 BBR（`kmod-tcp-bbr`）。

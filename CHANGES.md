@@ -279,3 +279,22 @@ i18n 就撞文件——正是文件头「注意事项 6」I18N_BUILTIN 要防的
 代码注释里，便于审查。
 
 **验证**：离线 PASS 17 / 在线 PASS 34 / FAIL 0。
+
+## 追加：按用户需求精简模块（2026-11-24）
+
+用户确认 4 项插件对其无用（已刷入固件后反馈），从模块定义中移除：
+
+| 用户所说 | 对应包 | 处理 |
+| --- | --- | --- |
+| natmap | `luci-app-natmap` | 从 network 移除 |
+| 3proxy | `3proxy-mod-tcppm/udppm`（由 3cat 依赖带入） | 连 3cat 一并从 monitor 移除 |
+| IP/MAC绑定 | `luci-app-arpbind` | 从 monitor 移除 |
+| Smart Queue Management | `luci-app-sqm`+`kmod-sched-cake` | 删除整个 qos 模块 |
+
+模块数 8 → 7，包引用 31 → 23。同步更新：workflow 的 `ALLOWED` 白名单与输入框
+说明、custom-packages.sh 的警告信息与注释、README/PACKAGES 的模块表、
+README 里残留的"默认 nikki"表述（改 clashoo）。
+
+**验证**：
+- 离线 PASS 17 / 在线 PASS 34，均 FAIL 0；模块三处同步（代码/workflow/README）零差集
+- 全模块包解析模拟：23 包 → 闭包 206，上述 4 项全部不在闭包内，代理栈仅 clashoo

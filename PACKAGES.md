@@ -116,24 +116,26 @@
 
 ## 四、可选模块（从 YAOF 移植）
 
-除上述短名开关外，本项目新增 **8 个模块化开关**，由工作流输入 `enable_modules`
+除上述短名开关外，本项目新增 **7 个模块化开关**，由工作流输入 `enable_modules`
 （空格分隔的模块名）经环境变量 `ENABLE_MODULES` 传入 `shell/custom-packages.sh` 的
 `_add_module()` 分派。默认全关，保持原项目的极简基线。
 
 | 模块 | 包 | 来源 |
 | --- | --- | --- |
-| `network` | `luci-proto-wireguard` / `luci-app-zerotier`+zh（官方版） / `luci-app-natmap` / `luci-app-upnp`（后两者 dllkids 版自带中文；natmapt 已剔除） | 官方 / dllkids |
-| `qos` | `luci-app-sqm` / `kmod-sched-cake` | 官方（含 kmods） |
+| `network` | `luci-proto-wireguard` / `luci-app-zerotier`+zh（官方版） / `luci-app-upnp`（dllkids 版自带中文） | 官方 / dllkids |
 | `ddns` | `luci-app-ddns`（dllkids 版自带中文） / `ddns-scripts` / `ddns-scripts-cloudflare` | dllkids / 官方 |
-| `monitor` | `luci-app-bandix` / `luci-app-arpbind` / `luci-app-3cat`（后两者 dllkids 版自带中文） | dllkids |
+| `monitor` | `luci-app-bandix`（实时流量） | dllkids |
 | `storage` | `luci-app-filemanager` + 中文 / `luci-app-partexp` / `kmod-fs-f2fs` / `zram-swap` | 官方 / dllkids / kmods |
 | `tuning` | `kmod-tcp-bbr` / `ethtool` | 官方 kmods / 官方 |
 | `usbnet` | `kmod-usb-net-rndis` / `kmod-usb-net-cdc-ether` / `kmod-usb-net-ipheth` / `usbmuxd` | 官方 kmods / 官方 |
 | `theme-vantage` | `luci-theme-vantage` / `luci-app-vantage` | dllkids（无独立 i18n 包） |
 
-**源侧核实（2026-11-24）**：以上 26 条包引用逐个核对存在于 ImmortalWrt 25.12.2
+> **2026-11-24 精简**：移除 `natmap`、`3proxy`（3cat 的依赖，连 3cat 一并移除）、
+> `arpbind`、`qos`（SQM+CAKE）共 4 项用户不需要的功能，8 模块减为 7 模块。
+
+**源侧核实（2026-11-24）**：包引用逐个核对存在于 ImmortalWrt 25.12.2
 官方源（10294 包，含 target kmods 1150 包）或 dllkids 源（640 包）；
-`audit.py --online` 的检查 14c 会持续复验，源侧漂移即判 FAIL。
+`audit.py --online` 的检查 14c/14d/14e 会持续复验，源侧漂移即判 FAIL。
 
 **刻意未收录**：`kmod-tcp-bbr3` / `luci-app-flowcone` / `kmod-sched-fq-codel`
 在 ImmortalWrt 25.12 源中均不存在；透明代理接管型插件（HomeProxy / dae / Honk 等）
