@@ -122,10 +122,10 @@
 
 | 模块 | 包 | 来源 |
 | --- | --- | --- |
-| `network` | `luci-proto-wireguard` / `luci-app-zerotier` / `luci-app-natmap` / `luci-app-natmapt` / `luci-app-upnp` | 官方 / dllkids |
+| `network` | `luci-proto-wireguard` / `luci-app-zerotier`+zh / `luci-app-natmap`+zh / `luci-app-natmapt` / `luci-app-upnp`+zh | 官方 / dllkids |
 | `qos` | `luci-app-sqm` / `kmod-sched-cake` | 官方（含 kmods） |
-| `ddns` | `luci-app-ddns` / `ddns-scripts` / `ddns-scripts-cloudflare` | 官方 |
-| `monitor` | `luci-app-bandix` / `luci-app-arpbind` / `luci-app-3cat` | dllkids / 官方 |
+| `ddns` | `luci-app-ddns`+zh / `ddns-scripts` / `ddns-scripts-cloudflare` | 官方 |
+| `monitor` | `luci-app-bandix` / `luci-app-arpbind`+zh / `luci-app-3cat`+zh | dllkids / 官方 |
 | `storage` | `luci-app-filemanager` + 中文 / `luci-app-partexp` / `kmod-fs-f2fs` / `zram-swap` | 官方 / dllkids / kmods |
 | `tuning` | `kmod-tcp-bbr` / `ethtool` | 官方 kmods / 官方 |
 | `usbnet` | `kmod-usb-net-rndis` / `kmod-usb-net-cdc-ether` / `kmod-usb-net-ipheth` / `usbmuxd` | 官方 kmods / 官方 |

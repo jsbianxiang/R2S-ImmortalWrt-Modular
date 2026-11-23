@@ -71,15 +71,17 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 
 本项目在原有极简基线上新增了模块化开关（`enable_modules` 工作流输入），把 YAOF
 固件里的常用插件移植过来，**按需勾选、默认全关**。所有模块用到的包均于 2026-11-24
-逐项核对存在于 ImmortalWrt 25.12.2 官方源（含 target kmods）或已注入的 dllkids 源；
-审计脚本的在线检查 14c 会持续验证这一点。
+逐项核对存在于 ImmortalWrt **25.12.0 / .1 / .2 全部三个版本**的官方源
+（含 target kmods）或已注入的 dllkids 源 —— 三版本用户态包集合一致
+（11531 / 11542 / 11542，差异仅在 kmods 的内核版本），模块包跨越三版本零缺失。
+审计脚本的在线检查 14c（当前版本）与 14d（workflow 声明的全版本）会持续复验。
 
 | 模块名 | 功能 | 包含的包 |
 | --- | --- | --- |
-| `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier`、`luci-app-natmap`、`luci-app-natmapt`、`luci-app-upnp` |
+| `network` | 网络协议与内网穿透 | `luci-proto-wireguard`、`luci-app-zerotier` + 中文、`luci-app-natmap` + 中文、`luci-app-natmapt`、`luci-app-upnp` + 中文 |
 | `qos` | 智能队列管理 | `luci-app-sqm`、`kmod-sched-cake` |
-| `ddns` | 动态域名 | `luci-app-ddns`、`ddns-scripts`、`ddns-scripts-cloudflare` |
-| `monitor` | 流量监控与绑定 | `luci-app-bandix`、`luci-app-arpbind`、`luci-app-3cat` |
+| `ddns` | 动态域名 | `luci-app-ddns` + 中文、`ddns-scripts`、`ddns-scripts-cloudflare` |
+| `monitor` | 流量监控与绑定 | `luci-app-bandix`、`luci-app-arpbind` + 中文、`luci-app-3cat` + 中文 |
 | `storage` | 存储与文件管理 | `luci-app-filemanager` + 中文、`luci-app-partexp`、`kmod-fs-f2fs`、`zram-swap` |
 | `tuning` | 网络调优 | `kmod-tcp-bbr`、`ethtool` |
 | `usbnet` | 手机 USB 共享网络 | `kmod-usb-net-rndis`、`kmod-usb-net-cdc-ether`、`kmod-usb-net-ipheth`、`usbmuxd` |

@@ -147,13 +147,16 @@ unset _app
 # （空格分隔的模块名）。默认空 = 一个都不装，保持原项目的极简基线。
 #
 # 设计约束（务必遵守，否则会破坏原项目的验证体系）：
-#   a) 只收录**已核实存在**于 ImmortalWrt 25.12.2 官方源 / dllkids 源 / target
-#      kmods 的包，逐个核对日期 2026-11-24。缺失的包（kmod-tcp-bbr3 /
-#      luci-app-flowcone / kmod-sched-fq-codel）不收录。
+#   a) 只收录**已核实存在**于 ImmortalWrt 25.12.0/.1/.2 官方源（5 feed + target
+#      + kmods）/ dllkids 源的包，逐版本核对日期 2026-11-24。三版本用户态包集合
+#      一致（11531/11542/11542），差异仅在 kmods（内核 6.12.87/.94/.103）。
+#      缺失的包（kmod-tcp-bbr3 / luci-app-flowcone / kmod-sched-fq-codel）不收录。
 #   b) 不收录任何**透明代理接管型**插件（homeproxy / dae / honk / nikki 等）——
 #      它们必须走「一、第三方插件」的代理互斥机制，避免与默认 clashoo 双开。
-#   c) 每个模块只追加包名，不写 i18n 包，除非该短名不在 I18N_BUILTIN 且官方源
-#      确有对应 luci-i18n-*-zh-cn（下面逐模块注明）。
+#   c) **中文包随模块补齐**：凡官方源有 `luci-i18n-<短名>-zh-cn` 的 app，模块里
+#      一并写入（已逐个核实：zerotier / natmap / upnp / ddns / arpbind / 3cat）。
+#      例外：filemanager 的中文包由 build.sh 默认 PACKAGES 已装，勿重复；
+#      natmapt / partexp / vantage 官方与 dllkids 源均无独立 i18n 包，保持原样。
 #   d) 未知模块名只 WARN 不 FAIL —— 容错，避免拼错一个名字就整包构建失败。
 #
 # 可用模块（8 个）：
@@ -170,16 +173,16 @@ ENABLE_MODULES="${ENABLE_MODULES:-}"
 _add_module() {
     case "$1" in
         network)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-app-natmap luci-app-natmapt luci-app-upnp"
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-proto-wireguard luci-app-zerotier luci-i18n-zerotier-zh-cn luci-app-natmap luci-i18n-natmap-zh-cn luci-app-natmapt luci-app-upnp luci-i18n-upnp-zh-cn"
             ;;
         qos)
             CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-sqm kmod-sched-cake"
             ;;
         ddns)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-ddns ddns-scripts ddns-scripts-cloudflare"
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-ddns luci-i18n-ddns-zh-cn ddns-scripts ddns-scripts-cloudflare"
             ;;
         monitor)
-            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-bandix luci-app-arpbind luci-app-3cat"
+            CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-bandix luci-app-arpbind luci-i18n-arpbind-zh-cn luci-app-3cat luci-i18n-3cat-zh-cn"
             ;;
         storage)
             # luci-i18n-filemanager-zh-cn 由 build.sh 默认 PACKAGES 已装，此处不重复

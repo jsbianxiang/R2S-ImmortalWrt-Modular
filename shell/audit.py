@@ -40,6 +40,8 @@ shell/audit.py —— 仓库一致性自检（把「人工审计」里反复过�
       官方源没有的前端一律剔除，不走第三方源兜底）
   14c. 模块包存在性：每个 `_add_module()` 分支引用的包必须能在 dllkids / 官方源
       （含 target kmods）解析到，避免勾选模块后 make image 失败
+  14d. 模块包全版本覆盖：14c 只验当前版本，但 workflow 的 luci_version 可选多个；
+      每个非 kmod 模块包必须在 workflow 声明的所有版本里都能解析
   15. **PACKAGES 依赖闭包**：用 bash 真实复现 build.sh 的 PACKAGES 拼接，BFS 解依赖
       闭包（读 `.apk` 前 32 KB 的 ADB 元数据），检查
         a) 显式包全部可解析；
@@ -387,6 +389,31 @@ def parse_workflow_modules(wf: str) -> set[str]:
     """解析 workflow 里 Validate optional modules 步骤的 ALLOWED 白名单。"""
     m = re.search(r'ALLOWED="([a-z0-9 -]+)"', wf)
     return set(m.group(1).split()) if m else set()
+
+
+def parse_workflow_versions(wf: str) -> list[str]:
+    """解析 workflow 里 luci_version 的 choice options（用户可选的全部版本）。"""
+    lines = wf.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if re.match(r"\s*luci_version:\s*$", line):
+            start = i
+            break
+    if start is None:
+        return []
+    versions: list[str] = []
+    in_options = False
+    for line in lines[start : start + 20]:
+        if re.match(r"\s+options:\s*$", line):
+            in_options = True
+            continue
+        if in_options:
+            m = re.match(r"\s+-\s+([\d.]+)\s*$", line)
+            if m:
+                versions.append(m.group(1))
+            elif versions and re.match(r"\s+\w+:\s", line):
+                break  # 进入下一个属性，options 块结束
+    return versions
 
 
 def parse_readme_modules(rd: str) -> set[str]:
@@ -961,6 +988,40 @@ def online_checks(version: str, decl: dict) -> None:
                 "模块包存在性",
                 "以下模块含源内不存在的包（勾选即构建失败）："
                 + "; ".join(f"{m}: {p}" for m, p in bad_by_mod.items()),
+            )
+
+    # --- 14d. 模块包在 workflow 声明的全部版本可用 -----------------------
+    # 14c 只验当前版本（默认 25.12.2），但 workflow 的 luci_version 是 choice，
+    # 用户可选 25.12.0/.1/.2。若某模块包只在 .2 存在，选旧版本构建即失败。
+    # 这里对每个声明版本抓 5 个 feed 的 index.json（快），验模块里的非 kmod 包。
+    wf_versions = parse_workflow_versions(read(WORKFLOW))
+    if impl_mods and len(wf_versions) > 1:
+        mod_pkgs = sorted({p for ps in impl_mods.values() for p in ps if not p.startswith("kmod-")})
+        ver_missing: dict[str, list[str]] = {}
+        ver_fetched: dict[str, set[str]] = {}
+        for v in wf_versions:
+            vs = set()
+            try:
+                base = OFFICIAL_RELEASES.format(ver=v)
+                for f in OFFICIAL_FEEDS:
+                    data = json.loads(fetch_retry(f"{base}/packages/{ARCH}/{f}/index.json"))
+                    vs |= set(data.get("packages", {}).keys())
+                ver_fetched[v] = vs
+                miss = [p for p in mod_pkgs if p not in vs and p not in dll]
+                if miss:
+                    ver_missing[v] = miss
+            except Exception as e:  # noqa: BLE001
+                warn(f"模块包版本覆盖 {v}", f"源不可达，跳过：{type(e).__name__}: {e}")
+        if ver_fetched and not ver_missing:
+            ok(
+                "模块包：workflow 全版本覆盖",
+                f"{len(mod_pkgs)} 个非 kmod 包在 {len(ver_fetched)}/{len(wf_versions)} "
+                f"个声明版本（{', '.join(ver_fetched)}）均可解析",
+            )
+        elif ver_missing:
+            fail(
+                "模块包：workflow 全版本覆盖",
+                "; ".join(f"{v}: {p}" for v, p in ver_missing.items()),
             )
 
     # --- 15. 依赖闭包 & 第二个代理前端 -----------------------------------

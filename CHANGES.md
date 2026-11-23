@@ -121,3 +121,29 @@ python3 shell/audit.py --online   → PASS 30 / WARN 1 / FAIL 0
 - `clean-workflow.yml` 会删除所有 workflow（含 audit）的运行记录；默认 90 天与
   Artifact 保留期对齐，属可接受取舍。
 - 模块 d) 未知模块名只 WARN 不 FAIL（工作流层已用白名单 exit 1 兜底，双重防护）。
+
+## 追加：2.3 模块化对 ImmortalWrt 25.12.x 的适用性核实
+
+用户要求确认 2.3 段是否适合整个 25.12.x 系列（workflow 可选 25.12.0/.1/.2），
+而非仅默认的 .2。逐版本拉取 5 个 feed + target + kmods 的 index.json 核对：
+
+- **三版本用户态包集合**：25.12.0=11531、25.12.1=11542、25.12.2=11542；
+  .1 比 .0 多 11 个 kmod（nf-nathelper 系等），与模块包无关。.1 与 .2 完全一致。
+- **26→31 条模块包引用**：跨越三版本全部存在，零缺失（kmod 由各版本 kmods 提供，
+  内核分别为 6.12.87 / 6.12.94 / 6.12.103）。
+
+### 发现并修复：中文包缺失
+
+原模块只写 app 不写 i18n，但 7 个 app 在官方源有独立中文包，导致启用 network /
+ddns / monitor / storage 后界面为英文。已补 6 个 i18n 包
+（zerotier / natmap / upnp / ddns / arpbind / 3cat）；filemanager 的中文包由
+build.sh 默认已装故不重复，natmapt / partexp / vantage 两源均无独立 i18n 保持原样。
+包引用从 26 增至 31。
+
+### 审计增强
+
+新增检查 14d「模块包 workflow 全版本覆盖」：解析 luci_version 的 choice options，
+对**每个声明版本**抓 5 个 feed 的 index.json，验证 25 个非 kmod 模块包全部可解析。
+变异测试确认：注入不存在的包时 14c 与 14d 均精确判 FAIL。
+
+**验证**：`audit.py --online` PASS 32 / WARN 0 / FAIL 0；全模块同开 46 包无重复。
