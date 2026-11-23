@@ -147,3 +147,51 @@ build.sh 默认已装故不重复，natmapt / partexp / vantage 两源均无独�
 变异测试确认：注入不存在的包时 14c 与 14d 均精确判 FAIL。
 
 **验证**：`audit.py --online` PASS 32 / WARN 0 / FAIL 0；全模块同开 46 包无重复。
+
+## 追加：全项目复审（2026-11-24）
+
+对全部 14 个文件做了独立复审（三个专项审查并行 + 文档/契约人工核对），
+共确认 4 个真实缺陷并修复，1 个建议经实测后回退，2 个疑点留待实机验证。
+
+### 已修复
+
+1. **【严重】99-custom.sh 缺升级保护**
+   OpenWrt 官方文档明确：uci-defaults 在「首次刷机」和「sysupgrade 保留配置
+   升级」后都会执行，无条件写入会重置用户在 LuCI 改过的 LAN/WAN 地址，LAN
+   被改回 192.168.2.1 时升级后进不了管理页。按官方推荐的标记法修复：写
+   `system.@system[0].r2s_custom_init=1`，脚本开头检测到标记即 exit 0。
+2. **【中】build.sh dllkids 公钥下载无失败检查**：`curl -fsSL` 失败不会中断
+   （脚本无 set -e），且残留旧公钥可能被误用。已加 `rm -f` + `|| exit 1`
+   + `-s` 非空检查 + 重试。
+3. **【中】build.sh source 依赖当前工作目录**：改为基于 `BASH_SOURCE` 定位，
+   并加失败检查。原写法在容器内恰好可用，但手动从别处执行会静默产出
+   无 clashoo 的固件。
+4. **【中】WAN heredoc 注入面**：无引号 heredoc 做命令替换，dhcp 模式下
+   workflow 不校验 IP 字段，API 触发可绕过 UI。已在 build.sh 写文件前独立
+   校验 WAN_PROTO 白名单 + IPv4 正则（实测拦截 `$(...)` / `;` 等注入）。
+
+### 经实测回退的建议
+
+- 审查建议把 audit.py 检查 15c 的 `m2["p"]` 换成 `m2["names"]`（理由是
+  apkmeta 文档称多 provides 包的 p 会少项）。**实测发现 names 含 libc /
+  ca-bundle 等普通依赖名**，替换后把 27 套代理栈全报成"跨栈提供者"
+  （WARN 洪水）。当前源里各栈的 mihomo/clash-meta 都在 p 中，故保留 p
+  并在代码里写明回退理由。这是"agent 建议必须实测"的例证。
+
+### 待实机验证的疑点（未改代码）
+
+- **static 模式 wan6**：文档称"static 分支不生成 wan6"，但 config_generate
+  在 preinit 基于出厂 dhcp 生成 wan6 后，99-custom.sh 改 proto 为 static
+  却未删除 wan6 —— 理论上会残留 dhcpv6 客户端。因不确定 config_generate
+  读取 proto 的确切时机，未贸然改代码或文档，建议实机 `uci show network.wan6`
+  确认后再定。
+- **audit.py 虚拟名依赖不反查**：resolve_closure 只按同名包展开，错误信息
+  却称"也没找到 provides 者"。理论上 apk 经虚拟名择优拉入的包会漏出闭包。
+  属原项目 inherited 的深层设计问题，修它会扩大检查范围、引入新 WARN，
+  本次不动，记录备查。
+
+### 验证
+
+- shell 语法 ×3、YAML ×3 全过
+- 审计离线 PASS 16 / FAIL 0；在线 PASS 32 / WARN 0 / FAIL 0
+- 升级保护、注入拦截、公钥失败检测均做了模拟测试

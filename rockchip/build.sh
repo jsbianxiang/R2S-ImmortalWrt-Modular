@@ -1,6 +1,13 @@
 #!/bin/bash
 # 构建期日志（注意：固件内的首启日志是 /etc/immortalwrt-builder/uci-defaults-log.txt，两者不是一回事）
-source shell/custom-packages.sh
+# source 路径基于脚本自身位置，避免依赖调用时的当前工作目录
+# （容器内由 workflow 挂载到 /home/build/immortalwrt/build.sh，shell/ 同级挂载）。
+_BUILD_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_BUILD_SH_DIR/../shell/custom-packages.sh" || {
+    echo "ERROR: 无法加载 shell/custom-packages.sh" >&2
+    exit 1
+}
+unset _BUILD_SH_DIR
 echo "第三方APK软件包: $CUSTOM_PACKAGES"
 LOGFILE="/tmp/build.log"
 echo "Starting build.sh at $(date)" >> $LOGFILE
@@ -41,6 +48,26 @@ mkdir -p "$SETTINGS_DIR"
 WAN_DNS="${WAN_DNS:-$WAN_GATEWAY}"
 # WAN 接入方式：默认 dhcp（与 ImmortalWrt 官方默认一致），可选 static
 WAN_PROTO="${WAN_PROTO:-dhcp}"
+
+# 注入防护：下方用无引号 heredoc 写 wan-settings，会做命令替换。
+# workflow 已对 static 模式的 IP 做了正则校验，但：① dhcp 模式下这些字段
+# 不经过校验；② API 触发可绕过 workflow 的校验逻辑。故在写入前独立校验，
+# 只放行 IPv4 / 空格分隔的多个 IPv4（DNS），其余字符（$ ` ( ) 换行等）拒绝。
+case "$WAN_PROTO" in dhcp|static) ;; *)
+    echo "ERROR: 非法 WAN_PROTO='$WAN_PROTO'（应为 dhcp/static）" >&2; exit 1 ;;
+esac
+_OCT='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+_IPV4="^${_OCT}\.${_OCT}\.${_OCT}\.${_OCT}$"
+for _v in "$WAN_IP" "$WAN_GATEWAY"; do
+    [ -z "$_v" ] && continue
+    printf '%s' "$_v" | grep -Eq "$_IPV4" \
+        || { echo "ERROR: WAN_IP/WAN_GATEWAY 含非法字符：$_v" >&2; exit 1; }
+done
+for _v in $WAN_DNS; do
+    printf '%s' "$_v" | grep -Eq "$_IPV4" \
+        || { echo "ERROR: WAN_DNS 含非法值：$_v" >&2; exit 1; }
+done
+unset _v _OCT _IPV4
 
 # 创建 WAN 配置文件（yml 传入 WAN_PROTO / WAN_IP / WAN_GATEWAY / WAN_DNS）
 # 该文件随固件发布，供 99-custom.sh 首次启动时读取
@@ -582,14 +609,19 @@ echo "==> 注入 dllkids APK 源..."
 grep -qxF "$DLLKIDS_FEED" repositories 2>/dev/null || echo "$DLLKIDS_FEED" >> repositories
 
 mkdir -p keys
+rm -f keys/dllkids-feed.pub.pem   # 防止下载失败时残留旧公钥被误用
 if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$DLLKIDS_KEY_URL" -o keys/dllkids-feed.pub.pem
+    curl -fsSL --retry 3 "$DLLKIDS_KEY_URL" -o keys/dllkids-feed.pub.pem \
+        || { echo "ERROR: 下载 dllkids 签名公钥失败：$DLLKIDS_KEY_URL" >&2; exit 1; }
 elif command -v wget >/dev/null 2>&1; then
-    wget -q -O keys/dllkids-feed.pub.pem "$DLLKIDS_KEY_URL"
+    wget -q --tries=3 -O keys/dllkids-feed.pub.pem "$DLLKIDS_KEY_URL" \
+        || { echo "ERROR: 下载 dllkids 签名公钥失败：$DLLKIDS_KEY_URL" >&2; exit 1; }
 else
     echo "ERROR: 缺少 curl/wget，无法下载 dllkids 签名公钥" >&2
     exit 1
 fi
+[ -s keys/dllkids-feed.pub.pem ] \
+    || { echo "ERROR: dllkids 签名公钥为空（下载被截断？）" >&2; exit 1; }
 
 echo "---- repositories ----"
 cat repositories

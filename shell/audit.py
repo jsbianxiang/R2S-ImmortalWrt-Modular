@@ -1141,6 +1141,13 @@ def check_dependency_closure(version: str, stacks, explicit_hint) -> None:
             m2 = apkmeta.fetch_meta(cat[p], CLOSURE_PREFIX_B, retries=2)
         except Exception:  # noqa: BLE001
             continue
+        # ⚠ 用 `p`（provides 分类）而非 `names`：names 是该区所有 token 的
+        # 并集，含 libc / ca-bundle 这类普通依赖名，拿它和闭包比会产生海量
+        # 假阳性（实测换成 names 会把 27 套栈全报成"跨栈提供者"）。
+        # apkmeta 文档说的"多 provides 可能少项"是理论风险；当前源里各栈
+        # 的 mihomo/clash-meta 都在 p 中（2026-11-24 实测 clashoo），够用。
+        # 若将来真出现 p 漏项导致漏报，应改进 apkmeta 的 p 解析，而不是
+        # 在这里退化成 names。
         offer = [x for x in m2["p"] if x in closure_names]
         if offer:
             prov_hits.append((p, nm, m2["V"], offer))

@@ -44,6 +44,21 @@
 #       uci: Parse error (invalid command) at line 1, byte 0
 #   本脚本自身的日志也遵循该约定，放在 /etc/immortalwrt-builder/ 下。
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 升级保护：uci-defaults 脚本在「首次刷机」和「sysupgrade 保留配置升级」后
+# 都会执行（OpenWrt 官方文档 uci-defaults#ensuring_scripts_dont_overwrite_-
+# custom_settings）。若无条件写入，会把用户在 LuCI 改过的 LAN/WAN 地址重置
+# 为构建默认值 —— LAN 被改回 192.168.2.1 时升级后可能进不了管理页。
+#
+# 方案（官方推荐做法）：写一个专属 UCI 标记。标记存在 ⇒ 已初始化过且用户
+# 配置被保留 ⇒ 直接退出，不覆盖。sysupgrade 保留 /etc/config/system 时标记
+# 随之保留；从官方固件全新刷入时标记不存在 ⇒ 正常初始化。
+if [ "$(uci -q get system.@system[0].r2s_custom_init)" = "1" ]; then
+    echo "$(date) already initialized, skip (upgrade with config preserved)" \
+        >> /tmp/uci-defaults-log 2>/dev/null || :
+    exit 0
+fi
+# ---------------------------------------------------------------------------
 SETTINGS_DIR='/etc/immortalwrt-builder'
 mkdir -p "$SETTINGS_DIR" 2>/dev/null || :
 
@@ -198,6 +213,11 @@ case "$CUSTOM_IP" in
 esac
 
 uci commit network
+
+# 写入初始化标记：下次 sysupgrade 保留配置升级时本脚本会据此跳过，
+# 避免覆盖用户在 LuCI 里改过的地址（见文件开头的升级保护说明）。
+uci set system.@system[0].r2s_custom_init='1'
+uci commit system
 
 # 仅记录实际接口映射，便于排查问题（不修改任何配置）
 echo "iface map: lan=$(uci -q get network.lan.device) wan=$(uci -q get network.wan.device) wan6=$(uci -q get network.wan6.device)" >>$LOGFILE
