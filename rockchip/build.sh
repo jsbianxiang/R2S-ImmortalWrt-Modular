@@ -142,10 +142,10 @@ PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
 # 代理类插件互斥 —— 构建期硬校验
 # ---------------------------------------------------------------------------
 # 本段 2026-10-13 自 NanoPi-R2S-OpenWrt-Builder 平移而来，与该仓库的校验保持
-# 一致（两边默认均为 clashoo，判定逻辑完全相同）。
+# 一致（判定逻辑完全相同；本项目当前默认 nikki）。
 #
-# 本项目默认启用 clashoo（见 shell/custom-packages.sh「一」）。若想换成
-# dllkids（kenzok8）源里的其他代理（nikki / openclash / passwall(2) /
+# 本项目默认启用 nikki（见 shell/custom-packages.sh「一」）。若想换成
+# dllkids（kenzok8）源里的其他代理（clashoo / openclash / passwall(2) /
 # ssr-plus / homeproxy / dae(d) / shadowsocks / redsocks / xray / v2raya …），
 # **必须先停旧的再开新的**，不能双开。
 #
@@ -256,7 +256,7 @@ if [ "$_PROXY_N" -gt 1 ]; then
         echo "轻则无法科学上网，重则刷机后直接断网。"
         echo ""
         echo "改法（shell/custom-packages.sh）—— 先停旧的，再开新的："
-        echo "  1) 注释掉「一」里当前启用的那行（默认是 clashoo）；"
+        echo "  1) 注释掉「一」里当前启用的那行（默认是 nikki）；"
         echo "  2) 取消你要用的那行注释；"
         echo "  3) 重跑构建。"
         echo ""
@@ -435,19 +435,11 @@ else
     echo "⚪️ 未选择 luci-app-ssr-plus"
 fi
 
-# ---------- clashoo：自带内核，不覆盖 ----------
-# clashoo 包自带 /usr/libexec/clashoo/mihomo-stable（21 MB），并提供 mihomo
-# 虚拟名满足自身依赖；它**不**使用 nikki 的 /usr/libexec/mihomo-core 路径。
-# 因此下方「跟随上游最新正式版」的覆盖逻辑对 clashoo 无效 —— 若误触发只会
-# 白下载一次 GitHub 资产并写入一个没人用的文件。这里显式识别并跳过。
-if echo " $PACKAGES " | grep -qE " (clashoo|luci-app-clashoo) "; then
-    echo "✅ 已选择 clashoo，内核使用包内自带的 /usr/libexec/clashoo/mihomo-stable（不覆盖）"
-    CLASHOO_SELF_KERNEL=1
-else
-    CLASHOO_SELF_KERNEL=0
-fi
-
 # ---------- nikki / SSR-Plus 内核：默认跟随上游最新正式版 ----------
+# ⚠ 换栈提示：若改用 clashoo，它自带内核 /usr/libexec/clashoo/mihomo-stable
+#   且不使用 /usr/libexec/mihomo-core，下面的覆盖逻辑对它无效（会白下载一次）。
+#   换到 clashoo 时应给下面的 if 加一条 clashoo 提前跳过分支（见 CHANGES.md
+#   2026-11-24 clashoo 默认期做法），当前默认 nikki 无需此分支。
 # 背景（2026-10-23 上游核实）：
 #   · nikki 自身没有内核频道开关 —— nikki.init 直接执行 /usr/bin/mihomo，
 #     nikki.conf 与 LuCI 视图均无版本设置；内核完全由 mihomo 包提供
@@ -485,9 +477,7 @@ MIHOMO_CORE_DIR="$BUILDER_DIR/files/usr/libexec"
 MIHOMO_CORE_GZ="$MIHOMO_CORE_DIR/.mihomo-core.gz"
 MIHOMO_CORE_BIN="$MIHOMO_CORE_DIR/.mihomo-core"
 
-if [ "$CLASHOO_SELF_KERNEL" = "1" ]; then
-    echo "⚪️ clashoo 自带内核，跳过上游 mihomo 二进制下载/覆盖"
-elif echo " $PACKAGES " | grep -qE " (nikki|luci-app-nikki|luci-app-ssr-plus) "; then
+if echo " $PACKAGES " | grep -qE " (nikki|luci-app-nikki|luci-app-ssr-plus) "; then
     mkdir -p "$MIHOMO_CORE_DIR"
     MIHOMO_CORE_TAG=""
 

@@ -42,7 +42,7 @@ NanoPi R2S 专用：基于 GitHub Actions + ImmortalWrt 官方 Image Builder 的
 | PPPoE 拨号 | WAN 默认 **DHCP** 接入（与 ImmortalWrt 官方默认一致），也可选静态 IP，`99-custom.sh` 中已无任何 PPPoE 逻辑 |
 | 多机型 / 多网口适配 | 不做。本分支专用于 R2S，网口映射（`eth0`=WAN / `eth1`=LAN）在 `99-custom.sh` 中**硬编码**，不再探测接口数量 |
 
-第三方软件只注入 **dllkids（kenzok8）** 一个源（默认只启用该源的 **clashoo**），
+第三方软件只注入 **dllkids（kenzok8）** 一个源（默认只启用该源的 **nikki**），
 由 `rockchip/build.sh` 在构建时注入，详见下文「预置软件与第三方源」。
 
 ---
@@ -218,7 +218,7 @@ GMAC，由内核直接支持。
   `flow_offloading`）、默认主题、`ttyd` / `dropbear` 监听范围 ——
   **全部保持 ImmortalWrt 官方默认**。
 
-> ⚠️ **若你启用了透明代理（默认 clashoo）**：ImmortalWrt 的防火墙出厂配置
+> ⚠️ **若你启用了透明代理（默认 nikki）**：ImmortalWrt 的防火墙出厂配置
 > （由 `001-firewall4-add-support-for-fullcone-nat.patch` 写入）是
 > `flow_offloading 1` / `flow_offloading_hw 1` / `fullcone 1` / `fullcone6 0`。
 > 其中 **flow offload 会让首包之后的流量绕过 netfilter 钩子，使 TPROXY 透明代理失效**，
@@ -236,7 +236,7 @@ GMAC，由内核直接支持。
 
 - 官方软件源中的**全部 kmod** 都可直接安装（kmods 源由 Image Builder 自动纳入，
   其依赖精确的内核版本，官方内核天然匹配）。
-- 代理插件（默认 clashoo）依赖的 `kmod-tun`、`kmod-nft-tproxy`、`kmod-nft-socket`、`kmod-inet-diag`
+- 代理插件（默认 nikki）依赖的 `kmod-tun`、`kmod-nft-tproxy`、`kmod-nft-socket`、`kmod-inet-diag`
   等内核模块均由官方 kmods 源解析。
 
 > **注意：首启后官方源地址会被改写为 ImmortalWrt 官方镜像。**
@@ -260,7 +260,7 @@ DLLKIDS_KEY_URL="https://down.dllkids.xyz/openwrt-feed/keys/dllkids-feed.pub.pem
 > - `aarch64_generic` 必须与目标的 `ARCH_PACKAGES` 一致，否则 apk 会以架构不符拒绝。
 > - 25.12 的配置启用了 `CONFIG_SIGNATURE_CHECK`，**必须**提供公钥，
 >   否则安装时会报 `UNTRUSTED signature`。
-> - 该源除默认启用的 clashoo 外，还提供 nikki / luci-app-ssr-plus / passwall2 /
+> - 该源除默认启用的 nikki 外，还提供 clashoo / luci-app-ssr-plus / passwall2 /
 >   openclash / mihomo 等。**这些代理插件互斥，只能启用一个** —— 详见下一节
 >   「代理插件互斥」。
 > - **该源与公钥也会随固件发布**，因此设备端可直接 `apk update` / `apk add` /
@@ -288,8 +288,8 @@ OpenClash），必须**先停旧的，再开新的**。
 
 | 代理栈 | 标志包 |
 | --- | --- |
-| nikki | `luci-app-nikki` / `nikki` |
-| Clashoo（默认） | `luci-app-clashoo` / `clashoo` |
+| nikki（默认） | `luci-app-nikki` / `nikki` |
+| Clashoo | `luci-app-clashoo` / `clashoo` |
 | OpenClash | `luci-app-openclash` |
 | PassWall | `luci-app-passwall` |
 | PassWall2 | `luci-app-passwall2` |
@@ -373,16 +373,9 @@ ALLOW_PROXY_CONFLICT=1 bash rockchip/build.sh
 > 新增代理栈时，记得同步更新 `rockchip/build.sh` 里的 `_PROXY_STACKS` 表、
 > 本表、以及 `shell/custom-packages.sh` 文件头「注意事项 2」的清单 —— 三处同步。
 
-### 代理内核来源：clashoo 自带；nikki 跟随上游最新正式版
+### 代理内核来源：nikki 跟随上游最新正式版
 
-**当前默认 clashoo：内核由包自带，不覆盖。** clashoo 包（21 MB）内含
-`/usr/libexec/clashoo/mihomo-stable`，并提供 `mihomo` 虚拟名满足自身依赖；
-它的内核路径与 nikki 的 `/usr/libexec/mihomo-core` **不同**。因此
-`rockchip/build.sh` 显式识别 clashoo 并跳过上游 mihomo 下载/覆盖逻辑 ——
-避免白下载一次 GitHub 资产、写入一个没人用的文件。clashoo 的内核版本随
-dllkids 源重建而更新（2026-11-24 实测为 1.19.34），不跟 GitHub 上游最新 tag。
-
-**换回 nikki 时**才启用下述「跟随上游最新正式版」机制：
+**当前默认 nikki：内核跟随上游最新正式版**（下述机制默认启用）。
 
 nikki **自身没有内核频道开关** —— `nikki.init` 直接执行 `/usr/bin/mihomo`，
 `nikki.conf` 与 LuCI 各视图均无版本设置；内核完全由 `mihomo` 包提供
@@ -416,6 +409,10 @@ postinst；mihomo 包无 postinst，不冲突）。`/usr/bin/mihomo` 的 alterna
 满足，只是实体二进制被换掉。⚠ 设备端执行 `apk upgrade mihomo`（固件自带
 dllkids 源）会把文件恢复成源内版本，需重刷固件。
 
+> **若换栈到 clashoo**：它自带内核 `/usr/libexec/clashoo/mihomo-stable`（21 MB），
+> 不使用上面的 `/usr/libexec/mihomo-core`，故上述覆盖逻辑对它无效。换栈时需在
+> `rockchip/build.sh` 的 mihomo 段加一条 clashoo 提前跳过分支（当前默认 nikki 不需要）。
+
 ### 预置软件包清单
 
 默认包列表定义在 `rockchip/build.sh` 的 `PACKAGES` 变量中；
@@ -432,7 +429,7 @@ dllkids 源）会把文件恢复成源内版本，需重刷固件。
 - 少数不是 `luci-app-<短名>` 形式的包（`luci-proto-*` / `luci-mod-*` /
   openclash / passwall 等），取消对应行注释即可。
 
-第三方插件默认启用 **clashoo** 一个（见上一节「代理插件互斥」；换栈时必须先停旧的）。
+第三方插件默认启用 **nikki** 一个（见上一节「代理插件互斥」；换栈时必须先停旧的）。
 
 ### 如何自行增加第三方源
 
@@ -458,7 +455,7 @@ rockchip/
   build.sh                                # 构建脚本 + dllkids 源注入 + 代理互斥校验
   imm.config                              # Image Builder 配置
 shell/
-  custom-packages.sh                      # 可选软件包开关（第三方插件默认仅 clashoo）
+  custom-packages.sh                      # 可选软件包开关（第三方插件默认仅 nikki）
   audit.py                                # 一致性自检脚本（离线 + 在线两类检查）
   apkmeta.py                              # apk-tools v3 ADB 容器元数据解析（供 audit.py / unpack_fw.py）
   unpack_fw.py                            # 固件解包取证（MBR + ext4 + apk 已装数据库，纯 Python）

@@ -320,3 +320,24 @@ README/PACKAGES 模块表与计数、模块数表述（明确 3 项移除是模�
 
 同步：custom-packages.sh、workflow 白名单与输入框、README、PACKAGES。
 离线审计 PASS 17 / FAIL 0，三处模块清单零差集。
+
+## 追加：默认代理改回 nikki（2026-11-24）
+
+用户要求把默认代理从 clashoo 改回 nikki。按 1afa40a（nikki→clashoo）的
+diff 精确反向操作：
+
+- **shell/custom-packages.sh**：1.1 段启用 nikki 六件套（luci-app-nikki + nikki
+  + 4 个 kmod），clashoo 三件套改回注释；文件头与模块注释里的"默认 clashoo"
+  改为 nikki。
+- **rockchip/build.sh**：删除 CLASHOO_SELF_KERNEL 判断，mihomo 覆盖条件恢复
+  为 `nikki|luci-app-nikki|luci-app-ssr-plus`（nikki 需要跟随上游最新内核）；
+  保留换栈到 clashoo 时的处理说明。
+- **README/PACKAGES**：默认声明、代理内核来源段（改为 nikki 跟随上游正式版，
+  clashoo 自带内核改为换栈附注）、互斥清单标记、目录说明同步。
+
+**验证**：
+- 离线 PASS 17 / 在线 PASS 33，FAIL 0
+- 依赖闭包 156 包，无第二代理前端（闭包含 nikki，显式启用 nikki）
+- 1 个 WARN（预期）：clashoo provides mihomo 且版本更高，apk 择优可能装它。
+  但源内有 mihomo 实体包兜底，且 build.sh 会把 /usr/libexec/mihomo-core
+  覆盖为上游最新版，nikki 实际执行的就是覆盖后的内核，不影响使用。

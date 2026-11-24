@@ -57,7 +57,7 @@
 - APK 源：`https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_generic/packages.adb`
 - 签名公钥：`https://down.dllkids.xyz/openwrt-feed/keys/dllkids-feed.pub.pem`
 
-> 该源是完整的第三方源，除默认启用的 clashoo 外还提供 `nikki`、`mihomo`、
+> 该源是完整的第三方源，除默认启用的 nikki 外还提供 `clashoo`、`mihomo`、
 > `luci-app-ssr-plus`、`luci-app-passwall` / `passwall2`、`luci-app-openclash`、
 > `sing-box`、`geoview` 等。**这些代理插件互斥，只能启用一个**（见 README
 > 「代理插件互斥」）。`rockchip/build.sh` 在检测到 `luci-app-ssr-plus` 时会
@@ -96,7 +96,7 @@
    （如 `ENABLE_APPS="filemanager rclone ttyd"`），脚本会自动展开为
    `luci-app-<短名>` + `luci-i18n-<短名>-zh-cn`；文件末尾列出全部可用短名。
    少数非 `luci-app-*` 形式的包（`luci-proto-*` / `luci-mod-*` / openclash /
-   passwall 等）取消对应行注释即可。第三方插件默认仅 clashoo（换栈见 README「代理插件互斥」）。
+   passwall 等）取消对应行注释即可。第三方插件默认仅 nikki（换栈见 README「代理插件互斥」）。
    > ⚠️ **例外：已内置中文的 app 包。** `argon-config` / `cpufreq` / `diskman`
    > 这三个短名的 app 包由 **dllkids 第三方源**提供 `27.150.x` 版本，**自带简体中文**
    > （内含 `usr/lib/lua/luci/i18n/*.zh-cn.lmo` 与 `etc/uci-defaults/luci-i18n-*`）；
