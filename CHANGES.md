@@ -341,3 +341,18 @@ diff 精确反向操作：
 - 1 个 WARN（预期）：clashoo provides mihomo 且版本更高，apk 择优可能装它。
   但源内有 mihomo 实体包兜底，且 build.sh 会把 /usr/libexec/mihomo-core
   覆盖为上游最新版，nikki 实际执行的就是覆盖后的内核，不影响使用。
+
+## 追加：复检发现并修复 nikki 内核路径错位（2026-11-24）
+
+用户要求复检 nikki 版固件（run #6，commit 05a9017）。解包取证发现：
+- nikki 前端与内核包都装了，clashoo 前端没装（无双开）——包层面正确
+- **但 `/usr/bin/mihomo` 的 alternatives 链接指向
+  `/usr/libexec/clashoo/mihomo-stable`**（clashoo 实体包被 apk 择优拉入，
+  因为它的包名版本 2026.11.12... 高于 mihomo 的 1.19.34，且 provides mihomo）
+- build.sh 的"跟随上游最新正式版"覆盖只写到 `/usr/libexec/mihomo-core`，
+  nikki 实际执行的却是 clashoo 那份 ⇒ 覆盖白做、内核不是上游最新
+
+修复：build.sh 在覆盖 mihomo-core 后，**无条件预置**同一份已校验内核到
+`files/usr/libexec/clashoo/mihomo-stable`（FILES 叠加层在 apk 安装之后覆盖
+同名文件）。不能用 `-f` 判断 clashoo 路径是否存在——构建期 clashoo apk 尚未
+安装。该路径已被 .gitignore 的 `/files/usr/libexec/` 覆盖。

@@ -581,6 +581,22 @@ if echo " $PACKAGES " | grep -qE " (nikki|luci-app-nikki|luci-app-ssr-plus) "; t
         mv -f "$MIHOMO_CORE_BIN" "$MIHOMO_CORE_DIR/mihomo-core"
         chmod 0755 "$MIHOMO_CORE_DIR/mihomo-core"
         echo "✅ mihomo 内核：${MIHOMO_CORE_TAG}（覆盖源内 apk 同名文件，$(du -h "$MIHOMO_CORE_DIR/mihomo-core" | cut -f1)，sha256 $(sha256sum "$MIHOMO_CORE_DIR/mihomo-core" | cut -c1-12)…）"
+
+        # ---- 同步覆盖 clashoo 内核路径 ----
+        # 2026-11-24 实测：dllkids 源的 clashoo provides `mihomo` 且包名版本
+        # （2026.11.12...）远高于 mihomo apk（1.19.34），apk 满足 nikki 的
+        # mihomo 依赖时会择优装 clashoo，/usr/bin/mihomo 的 alternatives 链接
+        # 因此指向 clashoo 自带的 /usr/libexec/clashoo/mihomo-stable —— 而不是
+        # 上面的 /usr/libexec/mihomo-core。若只覆盖后者，nikki 实际跑的仍是
+        # 源内旧内核，"跟随上游最新版"就白做了。
+        # 注意：这里操作的是 files/ 叠加层（make image 的 FILES= 在 apk 安装
+        # 之后覆盖同名文件），clashoo apk 此时尚未安装，故不能靠 -f 判断其
+        # 内核是否存在 —— 必须无条件预置，让叠加时覆盖 apk 那份。
+        CLASHOO_CORE_DIR="$MIHOMO_CORE_DIR/clashoo"
+        mkdir -p "$CLASHOO_CORE_DIR"
+        cp -f "$MIHOMO_CORE_DIR/mihomo-core" "$CLASHOO_CORE_DIR/mihomo-stable"
+        chmod 0755 "$CLASHOO_CORE_DIR/mihomo-stable"
+        echo "✅ 同步预置 clashoo 内核路径（files/usr/libexec/clashoo/mihomo-stable），确保 alternatives 指向的上游内核同为 ${MIHOMO_CORE_TAG}"
     fi
 else
     echo "⚪️ 未启用 nikki / ssr-plus / clashoo，跳过 mihomo 内核处理"
