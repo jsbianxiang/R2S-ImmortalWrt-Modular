@@ -530,15 +530,19 @@ python3 shell/audit.py --online   # 追加在线检查（拉官方源 + dllkids 
 3. **判定** —— 闭包里出现**第二个代理栈的前端**⇒ FAIL；闭包里的虚拟名被**另一套栈**
    提供 ⇒ WARN（择优安装风险，附版本与原因）。
 
-> **闭包条数 ≠ 镜像里已装包数，这是预期、不是漏抓。** 当前闭包实测 ~156 个，而镜像
-> `/lib/apk/db/installed` 是 262 个 —— 差额来自 **Image Builder 自己追加的默认包**
-> （luci / uhttpd 等），它们既不在显式 `PACKAGES` 里，检查 15 也无从展开。
+> **闭包条数 ≠ 镜像里已装包数，这是预期、不是漏抓。** 差额来自 **Image Builder
+> 自己追加的默认包**（luci / uhttpd / busybox 等），它们既不在显式 `PACKAGES` 里，
+> 检查 15 也无从展开。具体数字随勾选的模块而变（2026-11-24 精简版实测：镜像
+> 330 个包，全模块闭包 267 个），所以此处不写固定值。
 > 换言之检查 15 只覆盖「显式 + 显式的依赖」这两层，**不覆盖「IB 默认」那一层**；
 > 后者只能在产物侧用 `shell/unpack_fw.py packages` 核对（下面的解包取证小节）。
 
 配套的 `shell/apkmeta.py` 负责解析 apk-tools v3 的 **ADB 容器**（`.apk` 不是
 gzip-tar，文件头是 `ADBd` + 裸 deflate）。它的 `D:` / `p:` 拆分规则与已知局限都写在
-模块 docstring 里；"X 是否提供虚拟名 Y" 这类判断请用 `Y in m["names"]`（不依赖分类）。
+模块 docstring 里；"X 是否提供虚拟名 Y" 这类判断请用 `Y in m["p"]`（**不要用
+`names`** —— names 是依赖区与 provides 区 token 的并集，会把 `libc` / `ca-bundle`
+这类普通依赖也算成"提供"，2026-11-24 实测换成 names 会把 27 套代理栈全报成
+"跨栈提供者"，产生假阳性）。
 
 ---
 

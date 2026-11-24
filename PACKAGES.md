@@ -131,12 +131,13 @@
 | `theme-vantage` | `luci-theme-vantage` / `luci-app-vantage` | dllkids（无独立 i18n 包） |
 
 > **2026-11-24 精简**：移除 `natmap`、`3proxy`（3cat 的依赖，连 3cat 一并移除）、
-> `arpbind` 共 3 项用户不需要的功能；`qos`（SQM+CAKE）按用户要求保留。
-> 三项都是模块内部的包，`qos` 保留；另移除 `ddns` 模块（私网 IP 无意义）。模块数 7。
+> `arpbind` 三个模块内部的包，以及整个 `ddns` 模块（用户光猫为路由模式、R2S 拿私网 IP，
+> DDNS 无意义）。`qos`（SQM+CAKE）按用户要求保留。模块数 8 → 7。
 
 **源侧核实（2026-11-24）**：包引用逐个核对存在于 ImmortalWrt 25.12.2
-官方源（10294 包，含 target kmods 1150 包）或 dllkids 源（640 包）；
-`audit.py --online` 的检查 14c/14d/14e 会持续复验，源侧漂移即判 FAIL。
+官方源（11542 包，含 target kmods）或 dllkids 源（640 包），并覆盖 25.12.0/.1/.2
+三个版本（当前 19 条引用全部可解析）；`audit.py --online` 的检查 14c/14d/14e
+会持续复验，源侧漂移即判 FAIL。
 
 **刻意未收录**：`kmod-tcp-bbr3` / `luci-app-flowcone` / `kmod-sched-fq-codel`
 在 ImmortalWrt 25.12 源中均不存在；透明代理接管型插件（HomeProxy / dae / Honk 等）
